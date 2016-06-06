@@ -1,0 +1,7 @@
+/config.*
+/cert.key
+/cert.pem
+/main.db
+/main.db-journal
+/test.php
+/user_init/*
