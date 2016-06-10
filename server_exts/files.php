@@ -1307,12 +1307,17 @@
 
 				if ($pathparts[4] === "root")
 				{
-					// /files/v1/user/limits
+					// /files/v1/user/root
 					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/user/root", "errorcode" => "use_get_request");
 
 					$result = array(
 						"success" => true,
-						"id" => ($guestrow === false ? "0" : $guestrow->serverexts["files"]["rootid"])
+						"id" => ($guestrow === false ? "0" : $guestrow->serverexts["files"]["rootid"]),
+						"download" => ($userrow->serverexts["files"]["read"] && ($guestrow === false || $guestrow->serverexts["files"]["read"])),
+						"upload" => ($userrow->serverexts["files"]["write"] && ($guestrow === false || $guestrow->serverexts["files"]["write"])),
+						"delete" => ($userrow->serverexts["files"]["delete"] && ($guestrow === false || $guestrow->serverexts["files"]["delete"])),
+						"guests" => ($guestrow === false && $userrow->serverexts["files"]["guests"]),
+						"expires" => ($guestrow === false ? -1 : (int)$guestrow->expires)
 					);
 
 					return $result;
