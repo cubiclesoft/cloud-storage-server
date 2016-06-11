@@ -940,7 +940,7 @@
 			}
 			else if ($pathparts[3] === "trash")
 			{
-				// Folder API.
+				// Trash API.
 				if ($y < 5)  return array("success" => false, "error" => "Invalid API call to /files/v1/trash.", "errorcode" => "invalid_api_call");
 
 				if ($pathparts[4] === "list")
@@ -1384,7 +1384,7 @@
 				}
 				else if ($pathparts[4] === "delete")
 				{
-					// /files/v1/guest/delete
+					// /files/v1/guest/delete/ID
 					if ($client->request["method"] !== "DELETE")  return array("success" => false, "error" => "DELETE request required for:  /files/v1/guest/delete/ID", "errorcode" => "use_delete_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of guest for:  /files/v1/guest/delete/ID", "errorcode" => "missing_id");
 
