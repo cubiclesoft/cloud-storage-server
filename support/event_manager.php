@@ -46,9 +46,9 @@
 			$results = array();
 			if ($eventname !== "" && isset($this->events[$eventname]))
 			{
-				foreach ($this->events[$eventname]["callback"] as $id => $func)
+				foreach ($this->events[$eventname]["callbacks"] as $id => $func)
 				{
-					if (!is_callable($func))  unset($this->events[$eventname]["callback"][$id]);
+					if (!is_callable($func))  unset($this->events[$eventname]["callbacks"][$id]);
 					else
 					{
 						$result = call_user_func_array($func, $options);
@@ -56,23 +56,23 @@
 					}
 				}
 
-				if (count($this->events[$eventname]["callback"]))  $this->events[$eventname]["used"]++;
+				if (count($this->events[$eventname]["callbacks"]))  $this->events[$eventname]["used"]++;
 				else  unset($this->events[$eventname]);
 			}
 
 			if (isset($this->events[""]))
 			{
-				foreach ($this->events[""]["callback"] as $id => $func)
+				foreach ($this->events[""]["callbacks"] as $id => $func)
 				{
-					if (!is_callable($func))  unset($this->events[""]["callback"][$id]);
+					if (!is_callable($func))  unset($this->events[""]["callbacks"][$id]);
 					else
 					{
-						$result = call_user_func_array($func, array($eventname) + $options);
+						$result = call_user_func_array($func, array_merge(array($eventname), $options));
 						if (isset($result))  $results[] = $result;
 					}
 				}
 
-				if (count($this->events[""]["callback"]))  $this->events[""]["used"]++;
+				if (count($this->events[""]["callbacks"]))  $this->events[""]["used"]++;
 				else  unset($this->events[""]);
 			}
 
