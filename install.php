@@ -42,13 +42,13 @@
 		$csr->setPublicKey($ca_publickey);
 
 		// Use the specified commonName.
-        $csr->removeDNProp("id-at-commonName");
+		$csr->removeDNProp("id-at-commonName");
 		if (!$csr->setDNProp("id-at-commonName", "Class 1 Certificate Authority"))  CSS_DisplayError("Unable to set commonName (common name) in the CSR.");
 
 		// Have to sign, save, and load the CSR to add extensions.
 		$csr->loadCSR($csr->saveCSR($csr->signCSR("sha256WithRSAEncryption")));
 
-		$keyusage2 = explode(",", "digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement, keyCertSign, cRLSign");
+		$keyusage2 = explode(",", "keyCertSign, cRLSign");
 		foreach ($keyusage2 as $num => $val)  $keyusage2[$num] = trim($val);
 		if (!$csr->setExtension("id-ce-keyUsage", $keyusage2))  CSS_DisplayError("Unable to set extension keyUsage in the CSR.");
 
@@ -98,13 +98,13 @@
 		$csr->setPublicKey($server_publickey);
 
 		// Use the specified commonName.
-        $csr->removeDNProp("id-at-commonName");
+		$csr->removeDNProp("id-at-commonName");
 		if (!$csr->setDNProp("id-at-commonName", "Cloud Storage Server"))  CSS_DisplayError("Unable to set commonName (common name) in the CSR.");
 
 		// Have to sign, save, and load the CSR to add extensions.
 		$csr->loadCSR($csr->saveCSR($csr->signCSR("sha256WithRSAEncryption")));
 
-		$keyusage2 = explode(",", "digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement, keyCertSign, cRLSign");
+		$keyusage2 = explode(",", "digitalSignature, keyEncipherment, keyAgreement");
 		foreach ($keyusage2 as $num => $val)  $keyusage2[$num] = trim($val);
 		if (!$csr->setExtension("id-ce-keyUsage", $keyusage2))  CSS_DisplayError("Unable to set extension keyUsage in the CSR.");
 
@@ -137,6 +137,7 @@
 
 		file_put_contents($rootpath . "/cert.pem", $server_cert . "\n" . $ca_cert);
 		file_put_contents($rootpath . "/cert.key", $server_privatekey->getPrivateKey());
+		@chmod($rootpath . "/cert.key", 0600);
 
 		echo "\tDone.\n\n";
 	}
