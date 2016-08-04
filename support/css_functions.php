@@ -46,7 +46,7 @@
 	{
 		global $rootpath;
 
-		file_put_contents($rootpath . "/config.dat", json_encode($config, JSON_PRETTY_PRINT));
+		file_put_contents($rootpath . "/config.dat", json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 		@chmod($rootpath . "/config.dat", 0660);
 	}
 
