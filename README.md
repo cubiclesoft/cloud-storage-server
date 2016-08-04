@@ -17,7 +17,7 @@ Features
 * Standards-based, RESTful interface.
 * And much, much more.  See the official documentation for a more complete feature list.
 * Also has a liberal open source license.  MIT or LGPL, your choice.
-* Designed for relatively painless integration into your envrionment.
+* Designed for relatively painless integration into your environment.
 * Sits on GitHub for all of that pull request and issue tracker goodness to easily submit changes and ideas respectively.
 
 More Information
