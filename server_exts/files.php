@@ -48,12 +48,16 @@
 			$config["ext_file_uploadlimit"] = CSS_ConvertUserStrToBytes($config["ext_file_uploadlimit"]);
 		}
 
-		public function HTTPPreProcessAPI($pathparts, $client, $userrow, $guestrow)
+		public function UpdateStreamsAndTimeout($prefix, &$timeout, &$readfps, &$writefps)
+		{
+		}
+
+		public function HTTPPreProcessAPI($reqmethod, $pathparts, $client, $userrow, $guestrow)
 		{
 			global $config;
 
 			// POST /files/v1/file/upload
-			if ($client->request["method"] === "POST" && count($pathparts) > 4 && $pathparts[3] === "file" && $pathparts[4] === "upload" && $userrow->serverexts["files"]["write"] && ($guestrow === false || $guestrow->serverexts["files"]["write"]))
+			if ($reqmethod === "POST" && count($pathparts) > 4 && $pathparts[3] === "file" && $pathparts[4] === "upload" && $userrow->serverexts["files"]["write"] && ($guestrow === false || $guestrow->serverexts["files"]["write"]))
 			{
 				// Adjust recvlimit for the current request based on the quota limit for the user and the global per-upload limit.
 				CSS_AdjustRecvLimit($client, CSS_GetMinAmountLeft(array(CSS_GetQuotaLeft($userrow), CSS_GetTransferLeft($userrow), $config["ext_file_uploadlimit"])));
@@ -225,7 +229,7 @@
 			}
 			catch (Exception $e)
 			{
-				return array("success" => false, "error" => "A database query failed while creating a folder.", "errorcode" => "db_query_error");
+				return array("success" => false, "error" => "A database query failed while creating/updating a file.", "errorcode" => "db_query_error");
 			}
 		}
 
@@ -796,7 +800,7 @@
 			}
 		}
 
-		public function ProcessAPI($pathparts, $client, $userrow, $guestrow, $data)
+		public function ProcessAPI($reqmethod, $pathparts, $client, $userrow, $guestrow, $data)
 		{
 			global $rootpath, $userhelper;
 
@@ -877,7 +881,7 @@
 				if ($pathparts[4] === "list")
 				{
 					// /files/v1/folder/list
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/folder/list/ID", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/folder/list/ID", "errorcode" => "use_get_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of parent for:  /files/v1/folder/list/ID", "errorcode" => "missing_id");
 					if (!self::GuestHasObjectAccess($guestrow, $filesdb, $pathparts[5]))  return array("success" => false, "error" => "Guest access denied to requested object.", "errorcode" => "access_denied");
 
@@ -909,7 +913,7 @@
 				else if ($pathparts[4] === "create")
 				{
 					// /files/v1/folder/create
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/folder/create", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/folder/create", "errorcode" => "use_post_request");
 					if (!isset($data["folderid"]))  return array("success" => false, "error" => "Missing 'folderid'.", "errorcode" => "missing_folderid");
 					if (!isset($data["name"]))  return array("success" => false, "error" => "Missing 'name'.", "errorcode" => "missing_name");
 					if (!$userrow->serverexts["files"]["write"] || ($guestrow !== false && !$guestrow->serverexts["files"]["write"]))  return array("success" => false, "error" => "Write access denied.", "errorcode" => "access_denied");
@@ -946,7 +950,7 @@
 				if ($pathparts[4] === "list")
 				{
 					// /files/v1/trash/list
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/trash/list", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/trash/list", "errorcode" => "use_get_request");
 					if ($y > 5 && !self::GuestHasObjectAccess($guestrow, $filesdb, $pathparts[5]))  return array("success" => false, "error" => "Guest access denied to requested object.", "errorcode" => "access_denied");
 
 					try
@@ -996,7 +1000,7 @@
 				if ($pathparts[4] === "upload")
 				{
 					// /files/v1/file/upload/ID
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/file/upload/ID", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/file/upload/ID", "errorcode" => "use_post_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of parent for:  /files/v1/file/upload/ID", "errorcode" => "missing_id");
 					if (!isset($data["name"]))  return array("success" => false, "error" => "Missing 'name'.", "errorcode" => "missing_name");
 					if (!isset($data["data"]) || !is_object($data["data"]))  return array("success" => false, "error" => "Missing upload 'data'.", "errorcode" => "missing_data");
@@ -1040,7 +1044,8 @@
 						if ($pathparts[4] === "download")
 						{
 							// Download file.
-							if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/file/download/ID[/filename]", "errorcode" => "use_get_request");
+							if (!($client instanceof WebServer_Client))  return array("success" => false, "error" => "HTTP/HTTPS is required for:  /files/v1/file/download/ID[/filename]", "errorcode" => "use_http_https");
+							if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/file/download/ID[/filename]", "errorcode" => "use_get_request");
 							if ($y < 6)  return array("success" => false, "error" => "Missing ID for:  /files/v1/file/download/ID[/filename]", "errorcode" => "missing_id");
 							if (!$userrow->serverexts["files"]["read"] || ($guestrow !== false && !$guestrow->serverexts["files"]["read"]))  return array("success" => false, "error" => "Download access denied.", "errorcode" => "access_denied");
 							if (!self::GuestHasObjectAccess($guestrow, $filesdb, $pathparts[5]))  return array("success" => false, "error" => "Guest access denied to requested object.", "errorcode" => "access_denied");
@@ -1087,7 +1092,8 @@
 						else
 						{
 							// Download database.
-							if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/file/downloaddatabase[/filename]", "errorcode" => "use_get_request");
+							if (!($client instanceof WebServer_Client))  return array("success" => false, "error" => "HTTP/HTTPS is required for:  /files/v1/file/download/downloaddatabase[/filename]", "errorcode" => "use_http_https");
+							if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/file/downloaddatabase[/filename]", "errorcode" => "use_get_request");
 							if (!$userrow->serverexts["files"]["read"] || $guestrow !== false)  return array("success" => false, "error" => "Download access denied.", "errorcode" => "access_denied");
 
 							$size = HTTP::RawFileSize($basedir . "/main.db");
@@ -1148,7 +1154,7 @@
 				if ($pathparts[4] === "bypath")
 				{
 					// /files/v1/object/bypath/...
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/object/bypath/...", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/object/bypath/...", "errorcode" => "use_get_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing path for:  /files/v1/object/bypath/...", "errorcode" => "missing_path");
 
 					// Guests get a subview based on their 'rootid'.
@@ -1177,7 +1183,7 @@
 				else if ($pathparts[4] === "byname")
 				{
 					// /files/v1/object/byname/ID/NAME
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/object/byname/ID/NAME", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/object/byname/ID/NAME", "errorcode" => "use_get_request");
 					if ($y < 7)  return array("success" => false, "error" => "Missing folder ID or name for:  /files/v1/object/byname/ID/NAME", "errorcode" => "missing_id_or_name");
 
 					// Normally resolve the object.
@@ -1210,7 +1216,7 @@
 				else if ($pathparts[4] === "byid")
 				{
 					// /files/v1/object/byid/ID
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/object/byid/ID", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/object/byid/ID", "errorcode" => "use_get_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing folder ID or name for:  /files/v1/object/byid/ID", "errorcode" => "missing_id");
 					if (!self::GuestHasObjectAccess($guestrow, $filesdb, $pathparts[5]))  return array("success" => false, "error" => "Guest access denied to requested object.", "errorcode" => "access_denied");
 
@@ -1234,7 +1240,7 @@
 				else if ($pathparts[4] === "copy")
 				{
 					// /files/v1/object/copy
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/copy", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/copy", "errorcode" => "use_post_request");
 					if (!isset($data["srcid"]))  return array("success" => false, "error" => "Missing 'srcid'.", "errorcode" => "missing_srcid");
 					if (!isset($data["destid"]))  return array("success" => false, "error" => "Missing 'destfolderid'.", "errorcode" => "missing_destid");
 					if (!$userrow->serverexts["files"]["write"] || ($guestrow !== false && !$guestrow->serverexts["files"]["write"]))  return array("success" => false, "error" => "Write access denied.", "errorcode" => "access_denied");
@@ -1253,7 +1259,7 @@
 				else if ($pathparts[4] === "move")
 				{
 					// /files/v1/object/move
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/move", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/move", "errorcode" => "use_post_request");
 					if (!isset($data["srcid"]))  return array("success" => false, "error" => "Missing 'srcid'.", "errorcode" => "missing_srcid");
 					if (!isset($data["destfolderid"]))  return array("success" => false, "error" => "Missing 'destfolderid'.", "errorcode" => "missing_destfolderid");
 					if (!$userrow->serverexts["files"]["write"] || ($guestrow !== false && !$guestrow->serverexts["files"]["write"]))  return array("success" => false, "error" => "Write access denied.", "errorcode" => "access_denied");
@@ -1265,7 +1271,7 @@
 				else if ($pathparts[4] === "rename")
 				{
 					// /files/v1/object/rename/ID
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/rename/ID", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/rename/ID", "errorcode" => "use_post_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of object for:  /files/v1/object/rename/ID", "errorcode" => "missing_id");
 					if (!isset($data["name"]))  return array("success" => false, "error" => "Missing 'name'.", "errorcode" => "missing_name");
 					if (!$userrow->serverexts["files"]["write"] || ($guestrow !== false && !$guestrow->serverexts["files"]["write"]))  return array("success" => false, "error" => "Write access denied.", "errorcode" => "access_denied");
@@ -1276,7 +1282,7 @@
 				else if ($pathparts[4] === "trash" || $pathparts[4] === "restore")
 				{
 					// /files/v1/object/trash/ID OR /files/v1/object/restore/ID
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/" . $pathparts[4] . "/ID", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/object/" . $pathparts[4] . "/ID", "errorcode" => "use_post_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of object for:  /files/v1/object/" . $pathparts[4] . "/ID", "errorcode" => "missing_id");
 					if (!$userrow->serverexts["files"]["write"] || ($guestrow !== false && !$guestrow->serverexts["files"]["write"]))  return array("success" => false, "error" => "Write access denied.", "errorcode" => "access_denied");
 					if (!self::GuestHasObjectAccess($guestrow, $filesdb, $pathparts[5]))  return array("success" => false, "error" => "Guest access denied to requested object.", "errorcode" => "access_denied");
@@ -1287,7 +1293,7 @@
 				else if ($pathparts[4] === "delete")
 				{
 					// /files/v1/object/delete/ID
-					if ($client->request["method"] !== "DELETE")  return array("success" => false, "error" => "DELETE request required for:  /files/v1/object/delete/ID", "errorcode" => "use_delete_request");
+					if ($reqmethod !== "DELETE")  return array("success" => false, "error" => "DELETE request required for:  /files/v1/object/delete/ID", "errorcode" => "use_delete_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of object for:  /files/v1/object/delete/ID", "errorcode" => "missing_id");
 					if (!$userrow->serverexts["files"]["delete"] || ($guestrow !== false && !$guestrow->serverexts["files"]["delete"]))  return array("success" => false, "error" => "Delete access denied.", "errorcode" => "access_denied");
 					if (!self::GuestHasObjectAccess($guestrow, $filesdb, $pathparts[5]))  return array("success" => false, "error" => "Guest access denied to requested object.", "errorcode" => "access_denied");
@@ -1308,7 +1314,7 @@
 				if ($pathparts[4] === "root")
 				{
 					// /files/v1/user/root
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/user/root", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/user/root", "errorcode" => "use_get_request");
 
 					$result = array(
 						"success" => true,
@@ -1325,7 +1331,7 @@
 				else if ($pathparts[4] === "limits")
 				{
 					// /files/v1/user/limits
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/user/limits", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/user/limits", "errorcode" => "use_get_request");
 
 					global $config;
 
@@ -1355,14 +1361,14 @@
 				if ($pathparts[4] === "list")
 				{
 					// /files/v1/guest/list
-					if ($client->request["method"] !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/guest/list", "errorcode" => "use_get_request");
+					if ($reqmethod !== "GET")  return array("success" => false, "error" => "GET request required for:  /files/v1/guest/list", "errorcode" => "use_get_request");
 
 					return $userhelper->GetGuestsByServerExtension($userrow->id, "files");
 				}
 				else if ($pathparts[4] === "create")
 				{
 					// /files/v1/guest/create
-					if ($client->request["method"] !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/guest/create", "errorcode" => "use_post_request");
+					if ($reqmethod !== "POST")  return array("success" => false, "error" => "POST request required for:  /files/v1/guest/create", "errorcode" => "use_post_request");
 					if (!isset($data["rootid"]))  return array("success" => false, "error" => "Missing 'rootid'.", "errorcode" => "missing_rootid");
 					if (!isset($data["read"]))  return array("success" => false, "error" => "Missing 'read'.", "errorcode" => "missing_read");
 					if (!isset($data["write"]))  return array("success" => false, "error" => "Missing 'write'.", "errorcode" => "missing_write");
@@ -1385,7 +1391,7 @@
 				else if ($pathparts[4] === "delete")
 				{
 					// /files/v1/guest/delete/ID
-					if ($client->request["method"] !== "DELETE")  return array("success" => false, "error" => "DELETE request required for:  /files/v1/guest/delete/ID", "errorcode" => "use_delete_request");
+					if ($reqmethod !== "DELETE")  return array("success" => false, "error" => "DELETE request required for:  /files/v1/guest/delete/ID", "errorcode" => "use_delete_request");
 					if ($y < 6)  return array("success" => false, "error" => "Missing ID of guest for:  /files/v1/guest/delete/ID", "errorcode" => "missing_id");
 
 					return $userhelper->DeleteGuest($pathparts[5], $userrow->id);

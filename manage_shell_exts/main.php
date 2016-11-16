@@ -20,7 +20,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) != 1 || isset($args["opts"]["help"]))
 		{
@@ -48,7 +48,7 @@
 		if (!$result["success"])  CSS_DisplayError("Unable to create user.", $result, false);
 		else
 		{
-			echo "Host:  https://" . $config["publichost"] . ":" . $config["port"] . "\n";
+			echo "Host:  " . ($config["host"] !== "[::1]" && $config["host"] !== "127.0.0.1" ? "https" : "http") . "://" . $config["publichost"] . ":" . $config["port"] . "\n";
 			echo "API key:  " . $result["info"]->apikey . "-" . $result["info"]->id . "\n";
 		}
 	}
@@ -65,7 +65,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) != 1 || isset($args["opts"]["help"]))
 		{
@@ -104,7 +104,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) != 2 || !isset($serverexts[$args["params"][1]]) || isset($args["opts"]["help"]))
 		{
@@ -155,7 +155,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) != 2 || isset($args["opts"]["help"]))
 		{
@@ -198,7 +198,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) != 2 || isset($args["opts"]["help"]))
 		{
@@ -240,7 +240,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) != 2 || isset($args["opts"]["help"]))
 		{
@@ -282,7 +282,7 @@
 				"help" => array("arg" => false)
 			)
 		);
-		$args = ParseCommandLine($options, $line);
+		$args = CLI::ParseCommandLine($options, $line);
 
 		if (count($args["params"]) > 1 || isset($args["opts"]["help"]))
 		{

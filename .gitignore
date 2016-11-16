@@ -5,3 +5,5 @@
 /main.db-journal
 /test.php
 /user_init/*
+/server_exts/scripts.php
+/support/createprocess.exe

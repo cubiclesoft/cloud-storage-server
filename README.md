@@ -14,11 +14,16 @@ Features
 * The /files API implements everything needed in a file-based cloud storage provider:  Folder hierarchy management, file upload/download, copy, move, rename, trash and restore, delete, and guest access.
 * User initialization for first time use of a specific server extension.  Useful for placing a 'welcome message' and/or initial folder setup in their account.
 * Extensible. Only limited by your imagination.
-* Standards-based, RESTful interface.
+* Standards-based, RESTful interface.  Also supports most operations over WebSocket.
 * And much, much more.  See the official documentation for a more complete feature list.
 * Also has a liberal open source license.  MIT or LGPL, your choice.
 * Designed for relatively painless integration into your environment.
 * Sits on GitHub for all of that pull request and issue tracker goodness to easily submit changes and ideas respectively.
+
+Nifty Extensions
+----------------
+
+* [/scripts](https://github.com/cubiclesoft/cloud-storage-server-ext-scripts) - A powerful and flexible API to initiate named, long-running scripts as other users on a system (e.g. root/SYSTEM).  The /scripts API uses a crontab-like, per-user definition file to define what scripts can be run.  Parameter and limited 'stdin' passing support.  While scripts are running, track status and/or monitor start and completion of script runs.
 
 More Information
 ----------------

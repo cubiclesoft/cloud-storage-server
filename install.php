@@ -152,7 +152,12 @@
 	{
 		echo "IPv6 (Y/N):  ";
 		$ipv6 = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
-		$config["host"] = ($ipv6 ? "[::0]" : "0.0.0.0");
+
+		echo "Localhost only and no SSL (Y/N):  ";
+		$localhost = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+
+		$config["host"] = ($ipv6 ? ($localhost ? "[::1]" : "[::0]") : ($localhost ? "127.0.0.1" : "0.0.0.0"));
+		if ($localhost)  $config["addlocalhost"] = false;
 
 		CSS_SaveConfig($config);
 	}
@@ -174,6 +179,16 @@
 		$port = (int)$port;
 		if ($port < 0 || $port > 65535)  $port = 9892;
 		$config["port"] = $port;
+
+		CSS_SaveConfig($config);
+	}
+
+	if (!isset($config["addlocalhost"]))
+	{
+		echo "Add localhost only server without SSL at port " . ($config["port"] + 1) . " (Y/N):  ";
+		$addlocalhost = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+
+		$config["addlocalhost"] = $addlocalhost;
 
 		CSS_SaveConfig($config);
 	}
