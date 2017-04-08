@@ -52,7 +52,7 @@
 					{
 						if (!isset($this->data["allowedprotocols"][$state["urlinfo"]["scheme"]]) || !$this->data["allowedprotocols"][$state["urlinfo"]["scheme"]])
 						{
-							return array("success" => false, "error" => HTTP::HTTPTranslate("Protocol '%s' is not allowed in '%s'.", $state["urlinfo"]["scheme"], $state["url"]), "errorcode" => "allowed_protocols");
+							return array("success" => false, "error" => self::WBTranslate("Protocol '%s' is not allowed in '%s'.", $state["urlinfo"]["scheme"], $state["url"]), "errorcode" => "allowed_protocols");
 						}
 
 						$filename = HTTP::ExtractFilename($state["urlinfo"]["path"]);
@@ -174,7 +174,7 @@
 						// Let a callback handle any additional state changes.
 						if (isset($state["options"]["pre_retrievewebpage_callback"]) && is_callable($state["options"]["pre_retrievewebpage_callback"]) && !call_user_func_array($state["options"]["pre_retrievewebpage_callback"], array(&$state)))
 						{
-							return array("success" => false, "error" => HTTP::HTTPTranslate("Pre-RetrieveWebpage callback returned with a failure condition for '%s'.", $state["url"]), "errorcode" => "pre_retrievewebpage_callback");
+							return array("success" => false, "error" => self::WBTranslate("Pre-RetrieveWebpage callback returned with a failure condition for '%s'.", $state["url"]), "errorcode" => "pre_retrievewebpage_callback");
 						}
 
 						// Process the request.
@@ -188,7 +188,7 @@
 						$result["redirectts"] = $state["redirectts"];
 						if (isset($result["rawsendsize"]))  $state["totalrawsendsize"] += $result["rawsendsize"];
 						$result["totalrawsendsize"] = $state["totalrawsendsize"];
-						if (!$result["success"])  return array("success" => false, "error" => HTTP::HTTPTranslate("Unable to retrieve content.  %s", $result["error"]), "info" => $result, "state" => $state, "errorcode" => "retrievewebpage");
+						if (!$result["success"])  return array("success" => false, "error" => self::WBTranslate("Unable to retrieve content.  %s", $result["error"]), "info" => $result, "state" => $state, "errorcode" => "retrievewebpage");
 
 						if (isset($state["options"]["async"]) && $state["options"]["async"])
 						{
@@ -253,7 +253,7 @@
 
 							if (!isset($this->data["allowedredirprotocols"][$urlinfo2["scheme"]]) || !$this->data["allowedredirprotocols"][$urlinfo2["scheme"]])
 							{
-								return array("success" => false, "error" => HTTP::HTTPTranslate("Protocol '%s' is not allowed.  Server attempted to redirect to '%s'.", $urlinfo2["scheme"], $state["url"]), "info" => $state["result"], "errorcode" => "allowed_redir_protocols");
+								return array("success" => false, "error" => self::WBTranslate("Protocol '%s' is not allowed.  Server attempted to redirect to '%s'.", $urlinfo2["scheme"], $state["url"]), "info" => $state["result"], "errorcode" => "allowed_redir_protocols");
 							}
 
 							if ($urlinfo2["host"] != $state["urlinfo"]["host"])
@@ -583,6 +583,8 @@
 			{
 				case "input":
 				{
+					if (!isset($row->name) && ($row->type === "submit" || $row->type === "image"))  $row->name = "";
+
 					if (isset($row->name) && is_string($row->name))
 					{
 						$field = array(
@@ -598,7 +600,8 @@
 							if ($field["value"] === "")  $field["value"] = "on";
 						}
 
-						if ($field["type"] == "input.submit" || $field["type"] == "input.image")  $field["hint"] = $field["type"] . "|" . $field["value"];
+						if (isset($row->placeholder))  $field["hint"] = trim($row->placeholder);
+						else if ($field["type"] == "input.submit" || $field["type"] == "input.image")  $field["hint"] = $field["type"] . "|" . $field["value"];
 						else if ($lasthint !== "")  $field["hint"] = $lasthint;
 
 						$fields[] = $field;
@@ -618,7 +621,9 @@
 							"name" => $row->name,
 							"value" => html_entity_decode($row->innertext, ENT_COMPAT, "UTF-8")
 						);
-						if ($lasthint !== "")  $field["hint"] = $lasthint;
+
+						if (isset($row->placeholder))  $field["hint"] = trim($row->placeholder);
+						else if ($lasthint !== "")  $field["hint"] = $lasthint;
 
 						$fields[] = $field;
 
@@ -719,7 +724,7 @@
 			}
 		}
 
-		public function InteractiveFormFill($forms, $showselected = false)
+		public static function InteractiveFormFill($forms, $showselected = false)
 		{
 			if (!is_array($forms))  $forms = array($forms);
 
@@ -728,19 +733,19 @@
 			if (count($forms) == 1)  $form = reset($forms);
 			else
 			{
-				echo HTTP::HTTPTranslate("There are multiple forms available to fill out:\n");
+				echo self::WBTranslate("There are multiple forms available to fill out:\n");
 				foreach ($forms as $num => $form)
 				{
-					echo HTTP::HTTPTranslate("\t%d:\n", $num + 1);
-					foreach ($form->info as $key => $val)  echo HTTP::HTTPTranslate("\t\t%s:  %s\n", $key, $val);
-					echo HTTP::HTTPTranslate("\t\tfields:  %d\n", count($form->GetVisibleFields(false)));
-					echo HTTP::HTTPTranslate("\t\tbuttons:  %d\n", count($form->GetVisibleFields(true)) - count($form->GetVisibleFields(false)));
+					echo self::WBTranslate("\t%d:\n", $num + 1);
+					foreach ($form->info as $key => $val)  echo self::WBTranslate("\t\t%s:  %s\n", $key, $val);
+					echo self::WBTranslate("\t\tfields:  %d\n", count($form->GetVisibleFields(false)));
+					echo self::WBTranslate("\t\tbuttons:  %d\n", count($form->GetVisibleFields(true)) - count($form->GetVisibleFields(false)));
 					echo "\n";
 				}
 
 				do
 				{
-					echo HTTP::HTTPTranslate("Select:  ");
+					echo self::WBTranslate("Select:  ");
 
 					$num = (int)trim(fgets(STDIN)) - 1;
 				} while (!isset($forms[$num]));
@@ -750,29 +755,29 @@
 
 			if ($showselected)
 			{
-				echo HTTP::HTTPTranslate("Selected form:\n");
-				foreach ($form->info as $key => $val)  echo HTTP::HTTPTranslate("\t%s:  %s\n", $key, $val);
+				echo self::WBTranslate("Selected form:\n");
+				foreach ($form->info as $key => $val)  echo self::WBTranslate("\t%s:  %s\n", $key, $val);
 				echo "\n";
 			}
 
 			if (count($form->GetVisibleFields(false)))
 			{
-				echo HTTP::HTTPTranslate("Select form fields by field number to edit a field.  When ready to submit the form, leave 'Field number' empty.\n\n");
+				echo self::WBTranslate("Select form fields by field number to edit a field.  When ready to submit the form, leave 'Field number' empty.\n\n");
 
 				do
 				{
-					echo HTTP::HTTPTranslate("Editable form fields:\n");
+					echo self::WBTranslate("Editable form fields:\n");
 					foreach ($form->fields as $num => $field)
 					{
 						if ($field["type"] == "input.hidden" || $field["type"] == "input.submit" || $field["type"] == "input.image" || $field["type"] == "input.button" || substr($field["type"], 0, 7) == "button.")  continue;
 
-						echo HTTP::HTTPTranslate("\t%d:  %s - %s\n", $num + 1, $field["name"], (is_array($field["value"]) ? json_encode($field["value"], JSON_PRETTY_PRINT) : $field["value"]) . (($field["type"] == "input.radio" || $field["type"] == "input.checkbox") ? ($field["checked"] ? HTTP::HTTPTranslate(" [Y]") : HTTP::HTTPTranslate(" [N]")) : "") . ($field["hint"] !== "" ? " [" . $field["hint"] . "]" : ""));
+						echo self::WBTranslate("\t%d:  %s - %s\n", $num + 1, $field["name"], (is_array($field["value"]) ? json_encode($field["value"], JSON_PRETTY_PRINT) : $field["value"]) . (($field["type"] == "input.radio" || $field["type"] == "input.checkbox") ? ($field["checked"] ? self::WBTranslate(" [Y]") : self::WBTranslate(" [N]")) : "") . (isset($field["hint"]) && $field["hint"] !== "" ? " [" . $field["hint"] . "]" : ""));
 					}
 					echo "\n";
 
 					do
 					{
-						echo HTTP::HTTPTranslate("Field number:  ");
+						echo self::WBTranslate("Field number:  ");
 
 						$num = trim(fgets(STDIN));
 						if ($num === "")  break;
@@ -788,19 +793,19 @@
 					}
 
 					$field = $form->fields[$num];
-					$prefix = ($field["hint"] !== "" ? $field["hint"] . " | " : "") . $field["name"];
+					$prefix = (isset($field["hint"]) && $field["hint"] !== "" ? $field["hint"] . " | " : "") . $field["name"];
 
 					if ($field["type"] == "select")
 					{
-						echo HTTP::HTTPTranslate("[%s] Options:\n", $prefix);
+						echo self::WBTranslate("[%s] Options:\n", $prefix);
 						foreach ($field["options"] as $key => $val)
 						{
-							echo HTTP::HTTPTranslate("\t%s:  %s\n");
+							echo self::WBTranslate("\t%s:  %s\n");
 						}
 
 						do
 						{
-							echo HTTP::HTTPTranslate("[%s] Select:  ", $prefix);
+							echo self::WBTranslate("[%s] Select:  ", $prefix);
 
 							$select = rtrim(fgets(STDIN));
 						} while (!isset($field["options"][$select]));
@@ -819,7 +824,7 @@
 					{
 						do
 						{
-							echo HTTP::HTTPTranslate("[%s] Filename:  ", $prefix);
+							echo self::WBTranslate("[%s] Filename:  ", $prefix);
 
 							$filename = rtrim(fgets(STDIN));
 						} while ($filename !== "" && !file_exists($filename));
@@ -836,7 +841,7 @@
 					}
 					else
 					{
-						echo HTTP::HTTPTranslate("[%s] New value:  ", $prefix);
+						echo self::WBTranslate("[%s] New value:  ", $prefix);
 
 						$form->fields[$num]["value"] = rtrim(fgets(STDIN));
 					}
@@ -846,7 +851,7 @@
 				} while (1);
 			}
 
-			$submitoptions = array(array("name" => HTTP::HTTPTranslate("Default action"), "value" => HTTP::HTTPTranslate("Might not work"), "hint" => "Default action"));
+			$submitoptions = array(array("name" => self::WBTranslate("Default action"), "value" => self::WBTranslate("Might not work"), "hint" => "Default action"));
 			foreach ($form->fields as $num => $field)
 			{
 				if ($field["type"] != "input.submit" && $field["type"] != "input.image" && $field["type"] != "input.button" && $field["type"] != "button.submit")  continue;
@@ -857,16 +862,16 @@
 			if (count($submitoptions) <= 2)  $num = count($submitoptions) - 1;
 			else
 			{
-				echo HTTP::HTTPTranslate("Available submit buttons:\n");
+				echo self::WBTranslate("Available submit buttons:\n");
 				foreach ($submitoptions as $num => $field)
 				{
-					echo HTTP::HTTPTranslate("\t%d:  %s - %s\n", $num, $field["name"], $field["value"] . ($field["hint"] !== "" ? " [" . $field["hint"] . "]" : ""));
+					echo self::WBTranslate("\t%d:  %s - %s\n", $num, $field["name"], $field["value"] . (isset($field["hint"]) && $field["hint"] !== "" ? " [" . $field["hint"] . "]" : ""));
 				}
 				echo "\n";
 
 				do
 				{
-					echo HTTP::HTTPTranslate("Select:  ");
+					echo self::WBTranslate("Select:  ");
 
 					$num = (int)fgets(STDIN);
 				} while (!isset($submitoptions[$num]));
@@ -886,7 +891,7 @@
 
 		public function SetCookie($cookie)
 		{
-			if (!isset($cookie["domain"]) || !isset($cookie["path"]) || !isset($cookie["name"]) || !isset($cookie["value"]))  return array("success" => false, "error" => HTTP::HTTPTranslate("SetCookie() requires 'domain', 'path', 'name', and 'value' to be options."), "errorcode" => "missing_information");
+			if (!isset($cookie["domain"]) || !isset($cookie["path"]) || !isset($cookie["name"]) || !isset($cookie["value"]))  return array("success" => false, "error" => self::WBTranslate("SetCookie() requires 'domain', 'path', 'name', and 'value' to be options."), "errorcode" => "missing_information");
 
 			$cookie["domain"] = strtolower($cookie["domain"]);
 			if (substr($cookie["domain"], 0, 1) != ".")  $cookie["domain"] = "." . $cookie["domain"];
@@ -954,6 +959,14 @@
 			$sec = (int)substr($ts, 17, 2);
 
 			return gmmktime($hour, $min, $sec, $month, $day, $year);
+		}
+
+		public static function WBTranslate()
+		{
+			$args = func_get_args();
+			if (!count($args))  return "";
+
+			return call_user_func_array((defined("CS_TRANSLATE_FUNC") && function_exists(CS_TRANSLATE_FUNC) ? CS_TRANSLATE_FUNC : "sprintf"), $args);
 		}
 	}
 
@@ -1093,8 +1106,11 @@
 				{
 					if (($submitname === false || $field["name"] === $submitname) && ($submitvalue === false || $field["value"] === $submitvalue))
 					{
-						if (!isset($fields[$field["name"]]))  $fields[$field["name"]] = array();
-						$fields[$field["name"]][] = $field["value"];
+						if ($submitname !== "")
+						{
+							if (!isset($fields[$field["name"]]))  $fields[$field["name"]] = array();
+							$fields[$field["name"]][] = $field["value"];
+						}
 
 						if ($field["type"] == "input.image")
 						{

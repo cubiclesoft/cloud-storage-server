@@ -23,6 +23,7 @@ Features
 Nifty Extensions
 ----------------
 
+* [/feeds](https://github.com/cubiclesoft/cloud-storage-server-ext-feeds) - A powerful and flexible API to send and schedule notifications with data payloads attached.  The /feeds API allows for scheduling future notifications and has powerful filtering features to only return information that a monitoring application is interested in.
 * [/scripts](https://github.com/cubiclesoft/cloud-storage-server-ext-scripts) - A powerful and flexible API to initiate named, long-running scripts as other users on a system (e.g. root/SYSTEM).  The /scripts API uses a crontab-like, per-user definition file to define what scripts can be run.  Parameter and limited 'stdin' passing support.  While scripts are running, track status and/or monitor start and completion of script runs.
 
 More Information
