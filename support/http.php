@@ -1,6 +1,6 @@
 <?php
 	// CubicleSoft PHP HTTP class.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2017 CubicleSoft.  All Rights Reserved.
 
 	class HTTP
 	{
@@ -252,6 +252,34 @@
 			return "";
 		}
 
+		public static function GetSSLCiphers($type = "intermediate")
+		{
+			$type = strtolower($type);
+
+			// Cipher list last updated May 3, 2017.
+			if ($type == "modern")  return "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256";
+			else if ($type == "old")  return "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:SEED:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!RSAPSK:!aDH:!aECDH:!EDH-DSS-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA:!SRP";
+
+			return "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS";
+		}
+
+		public static function GetSafeSSLOpts($cafile = true, $cipherstype = "intermediate")
+		{
+			// Result array last updated May 3, 2017.
+			$result = array(
+				"ciphers" => self::GetSSLCiphers($cipherstype),
+				"disable_compression" => true,
+				"allow_self_signed" => false,
+				"verify_peer" => true,
+				"verify_depth" => 5
+			);
+
+			if ($cafile === true)  $result["auto_cainfo"] = true;
+			else if ($cafile !== false)  $result["cafile"] = $cafile;
+
+			return $result;
+		}
+
 		// Reasonably parses RFC1123, RFC850, and asctime() dates.
 		public static function GetDateTimestamp($httpdate)
 		{
@@ -416,7 +444,7 @@
 				if (!isset($options["headers"]["Host"]))  $options[$key]["CN_match"] = $host;
 				else
 				{
-					$info = self::ExtractURL("http://" . $options["headers"]["Host"]);
+					$info = self::ExtractURL("https://" . $options["headers"]["Host"]);
 					$options[$key]["CN_match"] = $info["host"];
 				}
 			}
@@ -429,7 +457,7 @@
 				if (!isset($options["headers"]["Host"]))  $options[$key]["SNI_server_name"] = $host;
 				else
 				{
-					$info = self::ExtractURL("http://" . $options["headers"]["Host"]);
+					$info = self::ExtractURL("https://" . $options["headers"]["Host"]);
 					$options[$key]["SNI_server_name"] = $info["host"];
 				}
 			}
@@ -1295,7 +1323,7 @@
 			if ($url["scheme"] != "http" && $url["scheme"] != "https")  return array("success" => false, "error" => self::HTTPTranslate("RetrieveWebpage() only supports the 'http' and 'https' protocols."), "errorcode" => "protocol_check");
 
 			$secure = ($url["scheme"] == "https");
-			$protocol = ($secure ? (isset($options["protocol"]) && strtolower($options["protocol"]) == "ssl" ? "ssl" : "tls") : "tcp");
+			$protocol = ($secure ? (isset($options["protocol"]) ? strtolower($options["protocol"]) : "tls") : "tcp");
 			if (function_exists("stream_get_transports") && !in_array($protocol, stream_get_transports()))  return array("success" => false, "error" => self::HTTPTranslate("The desired transport protocol '%s' is not installed.", $protocol), "errorcode" => "transport_not_installed");
 			$host = str_replace(" ", "-", self::HeaderValueCleanup($url["host"]));
 			if ($host == "")  return array("success" => false, "error" => self::HTTPTranslate("Invalid URL."));
@@ -1321,7 +1349,7 @@
 				$proxyurl = self::ExtractURL($proxyurl);
 
 				$proxysecure = ($proxyurl["scheme"] == "https");
-				$proxyprotocol = ($proxysecure ? (isset($options["proxyprotocol"]) && strtolower($options["proxyprotocol"]) == "ssl" ? "ssl" : "tls") : "tcp");
+				$proxyprotocol = ($proxysecure ? (isset($options["proxyprotocol"]) ? strtolower($options["proxyprotocol"]) : "tls") : "tcp");
 				if (function_exists("stream_get_transports") && !in_array($proxyprotocol, stream_get_transports()))  return array("success" => false, "error" => self::HTTPTranslate("The desired transport proxy protocol '%s' is not installed.", $proxyprotocol), "errorcode" => "proxy_transport_not_installed");
 				$proxyhost = str_replace(" ", "-", self::HeaderValueCleanup($proxyurl["host"]));
 				$proxyport = ((int)$proxyurl["port"] ? (int)$proxyurl["port"] : ($proxysecure ? 443 : 80));
@@ -1520,8 +1548,9 @@
 				{
 					$context = @stream_context_create();
 					if (isset($options["source_ip"]))  $context["socket"] = array("bindto" => $options["source_ip"] . ":0");
-					if ($proxysecure && isset($options["proxysslopts"]) && is_array($options["proxysslopts"]))
+					if ($proxysecure)
 					{
+						if (!isset($options["proxysslopts"]) || !is_array($options["proxysslopts"]))  $options["proxysslopts"] = self::GetSafeSSLOpts();
 						self::ProcessSSLOptions($options, "proxysslopts", $host);
 						foreach ($options["proxysslopts"] as $key => $val)  @stream_context_set_option($context, "ssl", $key, $val);
 					}
@@ -1540,8 +1569,9 @@
 				{
 					$context = @stream_context_create();
 					if (isset($options["source_ip"]))  $context["socket"] = array("bindto" => $options["source_ip"] . ":0");
-					if ($secure && isset($options["sslopts"]) && is_array($options["sslopts"]))
+					if ($secure)
 					{
+						if (!isset($options["sslopts"]) || !is_array($options["sslopts"]))  $options["sslopts"] = self::GetSafeSSLOpts();
 						self::ProcessSSLOptions($options, "sslopts", $host);
 						foreach ($options["sslopts"] as $key => $val)  @stream_context_set_option($context, "ssl", $key, $val);
 					}
