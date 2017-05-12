@@ -41,7 +41,9 @@
 					}
 					else if ($currchr == "\"" || $currchr == "'")
 					{
-						$inside = ($inside === false ? $currchr : false);
+						if ($inside === false)  $inside = $currchr;
+						else if ($inside === $currchr)  $inside = false;
+						else  $currarg .= $currchr;
 					}
 					else if ($currchr == "\\" && $x < $y - 1)
 					{
@@ -201,28 +203,29 @@
 
 			do
 			{
-				if (!$suppressoutput)  echo $question . ($default !== false ? " [" . $default . "]" : "") . ":  ";
+				$prompt = ($suppressoutput ? "" : $question . ($default !== false ? " [" . $default . "]" : "") . ":  ");
 
 				if ($prefix !== false && isset($args["userinput"][$prefix]) && count($args["userinput"][$prefix]))
 				{
 					$line = array_shift($args["userinput"][$prefix]);
 					if ($line === "")  $line = $default;
-					if (!$suppressoutput)  echo $line . "\n";
+					if (!$suppressoutput)  echo $prompt . $line . "\n";
 				}
 				else if (count($args["params"]))
 				{
 					$line = array_shift($args["params"]);
 					if ($line === "")  $line = $default;
-					if (!$suppressoutput)  echo $line . "\n";
+					if (!$suppressoutput)  echo $prompt . $line . "\n";
 				}
-				else if (function_exists("readline") && function_exists("readline_add_history"))
+				else if (strtoupper(substr(php_uname("s"), 0, 3)) != "WIN" && function_exists("readline") && function_exists("readline_add_history"))
 				{
-					$line = trim(readline());
+					$line = trim(readline($prompt));
 					if ($line === "")  $line = $default;
-					if ($line !== "")  readline_add_history($line);
+					if ($line !== false && $line !== "")  readline_add_history($line);
 				}
 				else
 				{
+					echo $prompt;
 					$line = fgets(STDIN);
 					$line = trim($line);
 					if ($line === "")  $line = $default;
