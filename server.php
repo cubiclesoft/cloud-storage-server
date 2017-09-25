@@ -53,12 +53,13 @@
 	}
 
 	require_once $rootpath . "/support/web_server.php";
+	require_once $rootpath . "/support/remotedapi_web_server.php";
 	require_once $rootpath . "/support/websocket_server.php";
 
 	$wsserver = new WebSocketServer();
 	$webservers = array();
 	$tracker = array();
-	$webserver = new WebServer();
+	$webserver = (RemotedAPIWebServer::IsRemoted($config["host"]) ? new RemotedAPIWebServer() : new WebServer());
 
 	// Enable writing files to the system.
 	$cachedir = sys_get_temp_dir();
@@ -282,9 +283,7 @@
 							if ($result2 !== false)
 							{
 								// Prevent proxies from doing bad things.
-								$client->AddResponseHeader("Expires", "Tue, 03 Jul 2001 06:00:00 GMT", true);
-								$client->AddResponseHeader("Last-Modified", gmdate("D, d M Y H:i:s T"), true);
-								$client->AddResponseHeader("Cache-Control", "max-age=0, no-cache, must-revalidate, proxy-revalidate", true);
+								$client->SetResponseNoCache();
 
 								if (is_array($result2))
 								{

@@ -14,6 +14,7 @@ Features
 * The /files API implements everything needed in a file-based cloud storage provider:  Folder hierarchy management, file upload/download, copy, move, rename, trash and restore, delete, and guest access.
 * User initialization for first time use of a specific server extension.  Useful for placing a 'welcome message' and/or initial folder setup in their account.
 * Extensible. Only limited by your imagination.
+* [Remoted API Server](https://github.com/cubiclesoft/remoted-api-server) capable.
 * Standards-based, RESTful interface.  Also supports most operations over WebSocket.
 * And much, much more.  See the official documentation for a more complete feature list.
 * Also has a liberal open source license.  MIT or LGPL, your choice.

@@ -150,14 +150,25 @@
 
 	if (!isset($config["host"]))
 	{
-		echo "IPv6 (Y/N):  ";
-		$ipv6 = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+		echo "Remoted API server URL (leave blank unless you have one):  ";
+		$host = trim(fgets(STDIN));
+		if ($host !== "")
+		{
+			$config["host"] = $host;
+			$config["port"] = 0;
+			$config["addlocalhost"] = false;
+		}
+		else
+		{
+			echo "IPv6 (Y/N):  ";
+			$ipv6 = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
 
-		echo "Localhost only and no SSL (Y/N):  ";
-		$localhost = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+			echo "Localhost only and no SSL (Y/N):  ";
+			$localhost = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
 
-		$config["host"] = ($ipv6 ? ($localhost ? "[::1]" : "[::0]") : ($localhost ? "127.0.0.1" : "0.0.0.0"));
-		if ($localhost)  $config["addlocalhost"] = false;
+			$config["host"] = ($ipv6 ? ($localhost ? "[::1]" : "[::0]") : ($localhost ? "127.0.0.1" : "0.0.0.0"));
+			if ($localhost)  $config["addlocalhost"] = false;
+		}
 
 		CSS_SaveConfig($config);
 	}
