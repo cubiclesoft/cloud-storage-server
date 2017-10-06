@@ -312,6 +312,7 @@
 
 
 	require_once $rootpath . "/support/cli.php";
+	$suppressoutput = false;
 
 	if (function_exists("posix_geteuid"))
 	{
