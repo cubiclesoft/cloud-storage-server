@@ -1,0 +1,14 @@
+[Unit]
+Description=@SERVICENAME@
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=@SERVICEPIDFILE@
+ExecStart='@SERVICEMANAGER@' start '@SERVICENAME@'
+ExecReload='@SERVICEMANAGER@' reload '@SERVICENAME@'
+ExecStop='@SERVICEMANAGER@' stop '@SERVICENAME@'
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 <?php
 	// Cloud Storage Server.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2017 CubicleSoft.  All Rights Reserved.
 
 	if (!isset($_SERVER["argc"]) || !$_SERVER["argc"])
 	{
@@ -12,10 +12,72 @@
 	// Temporary root.
 	$rootpath = str_replace("\\", "/", dirname(__FILE__));
 
+	require_once $rootpath . "/support/cli.php";
 	require_once $rootpath . "/support/css_functions.php";
 
+	// Load configuration.
 	$config = CSS_LoadConfig();
 
+	if ($argc > 1)
+	{
+		// Service Manager PHP SDK.
+		require_once $rootpath . "/support/servicemanager.php";
+
+		$sm = new ServiceManager($rootpath . "/servicemanager");
+
+		echo "Service manager:  " . $sm->GetServiceManagerRealpath() . "\n\n";
+
+		$servicename = preg_replace('/[^a-z0-9]/', "-", $config["servicename"]);
+
+		if ($argv[1] == "install")
+		{
+			// Install the service.
+			$args = array();
+			$options = array(
+				"nixuser" => $config["serviceuser"],
+				"nixgroup" => $config["servicegroup"]
+			);
+
+			$result = $sm->Install($servicename, __FILE__, $args, $options, true);
+			if (!$result["success"])  CLI::DisplayError("Unable to install the '" . $servicename . "' service.", $result);
+		}
+		else if ($argv[1] == "start")
+		{
+			// Start the service.
+			$result = $sm->Start($servicename, true);
+			if (!$result["success"])  CLI::DisplayError("Unable to start the '" . $servicename . "' service.", $result);
+		}
+		else if ($argv[1] == "stop")
+		{
+			// Stop the service.
+			$result = $sm->Stop($servicename, true);
+			if (!$result["success"])  CLI::DisplayError("Unable to stop the '" . $servicename . "' service.", $result);
+		}
+		else if ($argv[1] == "uninstall")
+		{
+			// Uninstall the service.
+			$result = $sm->Uninstall($servicename, true);
+			if (!$result["success"])  CLI::DisplayError("Unable to uninstall the '" . $servicename . "' service.", $result);
+		}
+		else if ($argv[1] == "dumpconfig")
+		{
+			$result = $sm->GetConfig($servicename);
+			if (!$result["success"])  CLI::DisplayError("Unable to retrieve the configuration for the '" . $servicename . "' service.", $result);
+
+			echo "Service configuration:  " . $result["filename"] . "\n\n";
+
+			echo "Current service configuration:\n\n";
+			foreach ($result["options"] as $key => $val)  echo "  " . $key . " = " . $val . "\n";
+		}
+		else
+		{
+			echo "Command not recognized.  Run the service manager directly for anything other than 'install', 'start', 'stop', 'uninstall', and 'dumpconfig'.\n";
+		}
+
+		exit();
+	}
+
+	// Initialize server.
 	if (!isset($config["quota"]))  CSS_DisplayError("Configuration is incomplete or missing.  Run 'install.php' first.");
 	$config["quota"] = CSS_ConvertUserStrToBytes($config["quota"]);
 

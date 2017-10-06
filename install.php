@@ -310,5 +310,57 @@
 	echo "Now you can run 'manage.php' to setup and manage users.  Run 'server.php' to start the server.\n";
 	echo "**********\n\n";
 
+
+	require_once $rootpath . "/support/cli.php";
+
+	if (function_exists("posix_geteuid"))
+	{
+		$uid = posix_geteuid();
+		if ($uid !== 0)  CLI::DisplayError("The Cloud Storage Server installer must be run as the 'root' user (UID = 0) to install the system service on *NIX hosts.");
+	}
+
+	if (!isset($config["serviceuser"]))
+	{
+		if (!function_exists("posix_geteuid"))  $config["serviceuser"] = "";
+		else
+		{
+			$serviceuser = CLI::GetUserInputWithArgs($args, "serviceuser", "System service user/group", "cloud-storage-server", "The next question asks what user the system service will run as.  Both a system user and group will be created.", $suppressoutput);
+
+			$config["serviceuser"] = $serviceuser;
+
+			// Create the system user/group.
+			ob_start();
+			system("useradd -r -s /bin/false " . escapeshellarg($serviceuser));
+			if ($suppressoutput)  ob_end_clean();
+			else  ob_end_flush();
+
+			// Allow the group to read the configuration.
+			@chgrp($rootpath . "/config.dat", $serviceuser);
+		}
+
+		CSS_SaveConfig($config);
+	}
+
+	if (!isset($config["servicename"]))
+	{
+		$servicename = CLI::GetUserInputWithArgs($args, "servicename", "System service name", "cloud-storage-server", "The next question asks what the name of the system service will be.  Enter a single hyphen '-' to not install this software as a system service at this time.", $suppressoutput);
+
+		if ($servicename !== "-")
+		{
+			$config["servicename"] = $servicename;
+
+			CSS_SaveConfig($config);
+
+			// Install and start 'server.php' as a system service.
+			if (!$suppressoutput)  echo "\nInstalling system service...\n";
+			ob_start();
+			system(escapeshellarg(PHP_BINARY) . " " . escapeshellarg($rootpath . "/server.php") . " install");
+			system(escapeshellarg(PHP_BINARY) . " " . escapeshellarg($rootpath . "/server.php") . " start");
+			echo "\n\n";
+			if ($suppressoutput)  ob_end_clean();
+			else  ob_end_flush();
+		}
+	}
+
 	echo "Done.\n";
 ?>

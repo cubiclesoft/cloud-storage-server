@@ -1,0 +1,21 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          @SERVICENAME@
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts @SERVICENAME@
+# Description:       starts @SERVICENAME@
+### END INIT INFO
+
+'@SERVICEMANAGER@' $1 '@SERVICENAME@'
+
+if [ "$?" != 0 ] ; then
+	echo
+	echo "Service Manager returned a failure code."
+	echo
+	echo "Usage: $0 {start|stop|restart|reload|status|configfile|custom-action-name|uninstall}"
+
+	exit 1
+fi
