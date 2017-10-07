@@ -10,6 +10,17 @@
 			return (strtolower(substr($url, 0, 6)) === "rwr://" || strtolower(substr($url, 0, 7)) === "rwrs://");
 		}
 
+		public static function ExtractRealHost($url)
+		{
+			$urls = explode(" ", preg_replace('/\s+/', " ", $url));
+			foreach ($urls as $url)
+			{
+				if (strtolower(substr($url, 0, 6)) !== "rwr://" && strtolower(substr($url, 0, 7)) !== "rwrs://")  return $url;
+			}
+
+			return "";
+		}
+
 		// Expected URL format:  rwr://clientapikey@host/webroutepath
 		// Where 'clientapikey' is the Remoted API server client API key and 'webroutepath' is the path to a connected remoted API.
 		// Multiple layers can be specified by separating URLs with spaces.
