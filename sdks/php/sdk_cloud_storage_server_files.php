@@ -372,15 +372,25 @@
 
 				$this->fp = $result["fp"];
 				$url = $result["url"];
-			}
 
-			if ($this->fp !== false)
-			{
 				$options2 = array(
 					"fp" => $this->fp,
 					"method" => $method,
 					"headers" => array(
 						"Connection" => "keep-alive",
+						"X-APIKey" => $this->apikey
+					)
+				);
+			}
+			else if ($this->fp !== false)
+			{
+				$url = RemotedAPI::ExtractRealHost($url);
+
+				$options2 = array(
+					"fp" => $this->fp,
+					"method" => $method,
+					"headers" => array(
+						"Connection" => "keep-alive"
 					)
 				);
 			}
