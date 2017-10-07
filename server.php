@@ -196,7 +196,19 @@
 		$wsserver->UpdateStreamsAndTimeout("", $timeout, $readfps, $writefps);
 
 		$result = @stream_select($readfps, $writefps, $exceptfps, $timeout);
-		if ($result === false)  break;
+		if ($result === false)
+		{
+			if ($webservers[0] instanceof RemotedAPIWebServer)
+			{
+				sleep(5);
+
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		}
 
 		// Web server.
 		foreach ($webservers as $servernum => $webserver)
