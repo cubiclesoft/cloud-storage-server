@@ -9,6 +9,8 @@
 			global $rootpath, $config;
 
 			@mkdir($rootpath . "/user_init/files", 0770, true);
+			@chmod($rootpath . "/user_init/files", 02770);
+			if ($config["serviceuser"] !== "")  @chown($rootpath . "/user_init/files", $config["serviceuser"]);
 
 			if (!isset($config["ext_file_uploadlimit"]))
 			{

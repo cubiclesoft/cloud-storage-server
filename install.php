@@ -12,12 +12,53 @@
 	// Temporary root.
 	$rootpath = str_replace("\\", "/", dirname(__FILE__));
 
+	@mkdir($rootpath . "/data");
+	@chmod($rootpath . "/data", 02775);
+
+	// Legacy:  Move configuration information into data directory.
+	@rename($rootpath . "/config.dat", $rootpath . "/data/config.dat");
+	@rename($rootpath . "/cert.key", $rootpath . "/data/cert.key");
+	@rename($rootpath . "/cert.pem", $rootpath . "/data/cert.pem");
+	@rename($rootpath . "/main.db", $rootpath . "/data/main.db");
+
 	require_once $rootpath . "/support/css_functions.php";
 
 	$config = CSS_LoadConfig();
 
+	// Get the user the software will generally run as.
+	require_once $rootpath . "/support/cli.php";
+	$suppressoutput = false;
+
+	if (function_exists("posix_geteuid"))
+	{
+		$uid = posix_geteuid();
+		if ($uid !== 0)  CLI::DisplayError("The Cloud Storage Server installer must be run as the 'root' user (UID = 0) to install the system service on *NIX hosts.");
+	}
+
+	if (!isset($config["serviceuser"]))
+	{
+		if (!function_exists("posix_geteuid"))  $config["serviceuser"] = "";
+		else
+		{
+			$serviceuser = CLI::GetUserInputWithArgs($args, "serviceuser", "System service user/group", "cloud-storage-server", "The next question asks what user the system service will run as.  Both a system user and group will be created unless 'root' is specified.", $suppressoutput);
+
+			$config["serviceuser"] = $serviceuser;
+
+			// Create the system user/group.
+			if ($config["serviceuser"] !== "root")
+			{
+				ob_start();
+				system("useradd -r -s /bin/false " . escapeshellarg($serviceuser));
+				if ($suppressoutput)  ob_end_clean();
+				else  ob_end_flush();
+			}
+		}
+
+		CSS_SaveConfig($config);
+	}
+
 	// Create a certificate chain if it does not already exist.
-	if (!file_exists($rootpath . "/cert.pem") || !file_exists($rootpath . "/cert.key"))
+	if (!file_exists($rootpath . "/data/cert.pem") || !file_exists($rootpath . "/data/cert.key"))
 	{
 		echo "Creating CA and server certificates... (this can take a while)\n";
 
@@ -135,18 +176,26 @@
 		if ($signed === false)  CSS_DisplayError("Unable to self-sign CSR.");
 		$server_cert = $certsigner->saveX509($signed);
 
-		file_put_contents($rootpath . "/cert.pem", $server_cert . "\n" . $ca_cert);
-		file_put_contents($rootpath . "/cert.key", $server_privatekey->getPrivateKey());
-		@chmod($rootpath . "/cert.key", 0600);
+		file_put_contents($rootpath . "/data/cert.pem", $server_cert . "\n" . $ca_cert);
+		file_put_contents($rootpath . "/data/cert.key", $server_privatekey->getPrivateKey());
+		@chmod($rootpath . "/data/cert.key", 0600);
 
 		echo "\tDone.\n\n";
 	}
 
 	if (!isset($config["sslopts"]))  $config["sslopts"] = array();
-	if (!isset($config["sslopts"]["local_cert"]) && file_exists($rootpath . "/cert.pem"))  $config["sslopts"]["local_cert"] = $rootpath . "/cert.pem";
-	if (!isset($config["sslopts"]["local_pk"]) && file_exists($rootpath . "/cert.key"))  $config["sslopts"]["local_pk"] = $rootpath . "/cert.key";
+	if (!isset($config["sslopts"]["local_cert"]) && file_exists($rootpath . "/data/cert.pem"))  $config["sslopts"]["local_cert"] = $rootpath . "/data/cert.pem";
+	if (!isset($config["sslopts"]["local_pk"]) && file_exists($rootpath . "/data/cert.key"))  $config["sslopts"]["local_pk"] = $rootpath . "/data/cert.key";
 
 	CSS_SaveConfig($config);
+
+	// Allow the user to read various files/directories.
+	if ($config["serviceuser"] !== "")
+	{
+		@chown($rootpath . "/data", $config["serviceuser"]);
+		@chown($rootpath . "/data/cert.key", $config["serviceuser"]);
+		@chown($rootpath . "/data/config.dat", $config["serviceuser"]);
+	}
 
 	if (!isset($config["host"]))
 	{
@@ -238,7 +287,7 @@
 
 	try
 	{
-		$db->Connect("sqlite:" . $rootpath . "/main.db");
+		$db->Connect("sqlite:" . $rootpath . "/data/main.db");
 	}
 	catch (Exception $e)
 	{
@@ -300,9 +349,15 @@
 
 	// Run the installer portion of each server extension.
 	@mkdir($rootpath . "/user_init");
+	@chmod($rootpath . "/user_init", 02755);
+	if ($config["serviceuser"] !== "")  @chown($rootpath . "/user_init", $config["serviceuser"]);
 	foreach ($serverexts as $serverext)  $serverext->Install();
 
 	$db->Disconnect();
+
+	// Fix the database permissions.
+	@chmod($rootpath . "/data/main.db", 0660);
+	if ($config["serviceuser"] !== "")  @chown($rootpath . "/data/main.db", $config["serviceuser"]);
 
 	echo "\n";
 	echo "**********\n";
@@ -310,37 +365,6 @@
 	echo "Now you can run 'manage.php' to setup and manage users.  Run 'server.php' to start the server.\n";
 	echo "**********\n\n";
 
-
-	require_once $rootpath . "/support/cli.php";
-	$suppressoutput = false;
-
-	if (function_exists("posix_geteuid"))
-	{
-		$uid = posix_geteuid();
-		if ($uid !== 0)  CLI::DisplayError("The Cloud Storage Server installer must be run as the 'root' user (UID = 0) to install the system service on *NIX hosts.");
-	}
-
-	if (!isset($config["serviceuser"]))
-	{
-		if (!function_exists("posix_geteuid"))  $config["serviceuser"] = "";
-		else
-		{
-			$serviceuser = CLI::GetUserInputWithArgs($args, "serviceuser", "System service user/group", "cloud-storage-server", "The next question asks what user the system service will run as.  Both a system user and group will be created.", $suppressoutput);
-
-			$config["serviceuser"] = $serviceuser;
-
-			// Create the system user/group.
-			ob_start();
-			system("useradd -r -s /bin/false " . escapeshellarg($serviceuser));
-			if ($suppressoutput)  ob_end_clean();
-			else  ob_end_flush();
-
-			// Allow the group to read the configuration.
-			@chgrp($rootpath . "/config.dat", $serviceuser);
-		}
-
-		CSS_SaveConfig($config);
-	}
 
 	if (!isset($config["servicename"]))
 	{

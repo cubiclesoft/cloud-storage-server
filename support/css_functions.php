@@ -35,7 +35,7 @@
 	{
 		global $rootpath;
 
-		if (file_exists($rootpath . "/config.dat"))  $result = json_decode(file_get_contents($rootpath . "/config.dat"), true);
+		if (file_exists($rootpath . "/data/config.dat"))  $result = json_decode(file_get_contents($rootpath . "/data/config.dat"), true);
 		else  $result = array();
 		if (!is_array($result))  $result = array();
 
@@ -46,8 +46,8 @@
 	{
 		global $rootpath;
 
-		file_put_contents($rootpath . "/config.dat", json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-		@chmod($rootpath . "/config.dat", 0660);
+		file_put_contents($rootpath . "/data/config.dat", json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+		@chmod($rootpath . "/data/config.dat", 0660);
 	}
 
 	function CSS_LoadServerExtensions()
