@@ -1,8 +1,4 @@
-/config.*
-/cert.key
-/cert.pem
-/main.db
-/main.db-journal
+/data/*
 /test.php
 /user_init/*
 /server_exts/scripts.php

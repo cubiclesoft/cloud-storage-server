@@ -184,8 +184,8 @@
 	}
 
 	if (!isset($config["sslopts"]))  $config["sslopts"] = array();
-	if (!isset($config["sslopts"]["local_cert"]) && file_exists($rootpath . "/data/cert.pem"))  $config["sslopts"]["local_cert"] = $rootpath . "/data/cert.pem";
-	if (!isset($config["sslopts"]["local_pk"]) && file_exists($rootpath . "/data/cert.key"))  $config["sslopts"]["local_pk"] = $rootpath . "/data/cert.key";
+	if ((!isset($config["sslopts"]["local_cert"]) || !file_exists($config["sslopts"]["local_cert"])) && file_exists($rootpath . "/data/cert.pem"))  $config["sslopts"]["local_cert"] = $rootpath . "/data/cert.pem";
+	if ((!isset($config["sslopts"]["local_pk"]) || !file_exists($config["sslopts"]["local_pk"])) && file_exists($rootpath . "/data/cert.key"))  $config["sslopts"]["local_pk"] = $rootpath . "/data/cert.key";
 
 	CSS_SaveConfig($config);
 
