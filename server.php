@@ -127,7 +127,7 @@
 	$cachedir = sys_get_temp_dir();
 	$cachedir = str_replace("\\", "/", $cachedir);
 	if (substr($cachedir, -1) !== "/")  $cachedir .= "/";
-	$cachedir .= "cloudstorage/";
+	$cachedir .= "cloudstorage_" . microtime(true) . "/";
 	@mkdir($cachedir, 0770, true);
 	$webserver->SetCacheDir($cachedir);
 
@@ -154,7 +154,7 @@
 		$cachedir = sys_get_temp_dir();
 		$cachedir = str_replace("\\", "/", $cachedir);
 		if (substr($cachedir, -1) !== "/")  $cachedir .= "/";
-		$cachedir .= "cloudstorage_local/";
+		$cachedir .= "cloudstorage_local_" . microtime(true) . "/";
 		@mkdir($cachedir, 0770, true);
 		$webserver->SetCacheDir($cachedir);
 

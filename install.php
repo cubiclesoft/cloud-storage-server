@@ -262,6 +262,10 @@
 		CSS_SaveConfig($config);
 	}
 
+	// Adjust base path permissions.
+	@chmod($config["basepath"], 02770);
+	if ($config["serviceuser"] !== "")  @chown($config["basepath"], $config["serviceuser"]);
+
 	if (!isset($config["transferlimit"]))
 	{
 		echo "Default daily user transfer limit (in bytes, KB, MB, GB, or TB; -1 for unlimited transfer):  ";
