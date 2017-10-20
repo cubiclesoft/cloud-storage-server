@@ -201,8 +201,6 @@
 			if ($webservers[0] instanceof RemotedAPIWebServer)
 			{
 				sleep(5);
-
-				continue;
 			}
 			else
 			{
