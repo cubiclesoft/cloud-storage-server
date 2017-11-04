@@ -116,58 +116,55 @@
 
 		protected function HandleNewConnections(&$readfps, &$writefps)
 		{
-			if (isset($readfps["rws_http_s"]) || isset($writefps["rws_http_s"]))
+			$result = $this->rws->ProcessQueuesAndTimeoutState(isset($readfps["rws_http_s"]), isset($writefps["rws_http_s"]));
+			if ($result["success"])
 			{
-				$result = $this->rws->ProcessQueuesAndTimeoutState(isset($readfps["rws_http_s"]), isset($writefps["rws_http_s"]));
-				if ($result["success"])
+				// Initiate a new async WebRoute for each incoming connection request.
+				$result = $this->rws->Read();
+				while ($result["success"] && $result["data"] !== false)
 				{
-					// Initiate a new async WebRoute for each incoming connection request.
-					$result = $this->rws->Read();
-					while ($result["success"] && $result["data"] !== false)
+					$data = json_decode($result["data"]["payload"], true);
+
+					if (isset($data["ipaddr"]) && isset($data["id"]) && isset($data["timeout"]))
 					{
-						$data = json_decode($result["data"]["payload"], true);
+						$url = $this->rhost;
 
-						if (isset($data["ipaddr"]) && isset($data["id"]) && isset($data["timeout"]))
+						$options = array(
+							"async" => true,
+							"headers" => array()
+						);
+
+						$options["headers"]["X-Remoted-APIKey"] = $url["loginusername"];
+
+						$url["scheme"] = ($url["scheme"] === "rws" ? "wr" : "wrs");
+						unset($url["loginusername"]);
+						unset($url["login"]);
+
+						$data["url"] = HTTP::CondenseURL($url);
+						$data["retries"] = 3;
+						$data["options"] = $options;
+
+						// Due to the async setting, this will only initiate the connection.  No data is actually sent/received at this point.
+						$result = $this->rwr->Connect($data["url"], $data["id"], $data["timeout"], "auto", $data["options"]);
+						if ($result["success"])
 						{
-							$url = $this->rhost;
+							$result["data"] = $data;
 
-							$options = array(
-								"async" => true,
-								"headers" => array()
-							);
+							$this->rwrclients[$this->rwrnextclientid] = $result;
 
-							$options["headers"]["X-Remoted-APIKey"] = $url["loginusername"];
-
-							$url["scheme"] = ($url["scheme"] === "rws" ? "wr" : "wrs");
-							unset($url["loginusername"]);
-							unset($url["login"]);
-
-							$data["url"] = HTTP::CondenseURL($url);
-							$data["retries"] = 3;
-							$data["options"] = $options;
-
-							// Due to the async setting, this will only initiate the connection.  No data is actually sent/received at this point.
-							$result = $this->rwr->Connect($data["url"], $data["id"], $data["timeout"], "auto", $data["options"]);
-							if ($result["success"])
-							{
-								$result["data"] = $data;
-
-								$this->rwrclients[$this->rwrnextclientid] = $result;
-
-								$this->rwrnextclientid++;
-							}
+							$this->rwrnextclientid++;
 						}
-
-						$result = $this->rws->Read();
 					}
+
+					$result = $this->rws->Read();
 				}
-
-				// WebSocket was disconnected due to a socket error.
-				if (!$result["success"])  $this->rws->Disconnect();
-
-				unset($readfps["rws_http_s"]);
-				unset($writefps["rws_http_s"]);
 			}
+
+			// WebSocket was disconnected due to a socket error.
+			if (!$result["success"])  $this->rws->Disconnect();
+
+			unset($readfps["rws_http_s"]);
+			unset($writefps["rws_http_s"]);
 
 			// Handle WebRoute clients.
 			foreach ($this->rwrclients as $id => $client)
