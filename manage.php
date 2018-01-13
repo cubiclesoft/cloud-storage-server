@@ -25,7 +25,7 @@
 
 	try
 	{
-		$db->Connect("sqlite:" . $rootpath . "/main.db");
+		$db->Connect("sqlite:" . $rootpath . "/data/main.db");
 	}
 	catch (Exception $e)
 	{
