@@ -151,7 +151,7 @@ class Crypt_Hash
      * @return Crypt_Hash
      * @access public
      */
-    function Crypt_Hash($hash = 'sha1')
+    function __construct($hash = 'sha1')
     {
         if (!defined('CRYPT_HASH_MODE')) {
             switch (true) {
@@ -167,6 +167,18 @@ class Crypt_Hash
         }
 
         $this->setHash($hash);
+    }
+
+    /**
+     * PHP4 compatible Default Constructor.
+     *
+     * @see self::__construct()
+     * @param int $mode
+     * @access public
+     */
+    function Crypt_Hash($hash = 'sha1')
+    {
+        $this->__construct($hash);
     }
 
     /**
@@ -520,7 +532,6 @@ class Crypt_Hash
                       $this->_rightShift( $w[$i - 2], 10);
                 // @codingStandardsIgnoreEnd
                 $w[$i] = $this->_add($w[$i - 16], $s0, $w[$i - 7], $s1);
-
             }
 
             // Initialize hash value for this chunk
@@ -821,7 +832,17 @@ class Crypt_Hash
             $result+= $argument < 0 ? ($argument & 0x7FFFFFFF) + 0x80000000 : $argument;
         }
 
-        return fmod($result, $mod);
+        switch (true) {
+            case is_int($result):
+            // PHP 5.3, per http://php.net/releases/5_3_0.php, introduced "more consistent float rounding"
+            case version_compare(PHP_VERSION, '5.3.0') >= 0 && (php_uname('m') & "\xDF\xDF\xDF") != 'ARM':
+            // PHP_OS & "\xDF\xDF\xDF" == strtoupper(substr(PHP_OS, 0, 3)), but a lot faster
+            case (PHP_OS & "\xDF\xDF\xDF") === 'WIN':
+                return fmod($result, $mod);
+        }
+
+        return (fmod($result, 0x80000000) & 0x7FFFFFFF) |
+            ((fmod(floor($result / 0x80000000), 2) & 1) << 31);
     }
 
     /**
