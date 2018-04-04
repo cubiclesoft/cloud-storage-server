@@ -24,7 +24,7 @@
 				{
 					case "initialize":
 					{
-						$result = $state->web->Process($state->url, $state->profile, $state->options);
+						$result = $state->web->Process($state->url, $state->options);
 						if (!$result["success"])  return $result;
 
 						if (isset($state->options["async"]) && $state->options["async"])
@@ -74,7 +74,7 @@
 			return $state->result;
 		}
 
-		public function Connect($url, $id = false, $timeout = false, $profile = "auto", $options = array(), $web = false)
+		public function Connect($url, $id = false, $timeout = false, $options = array(), $web = false)
 		{
 			// Generate client ID.
 			if ($id === false)
@@ -112,7 +112,6 @@
 			$state->state = "initialize";
 			$state->web = $web;
 			$state->url = $url2;
-			$state->profile = $profile;
 			$state->options = $options;
 			$state->webstate = false;
 			$state->result = false;
@@ -138,7 +137,7 @@
 					if ($info->init)  $data = $info->keep;
 					else
 					{
-						$info->result = $this->Connect($info->url, $info->id, $info->timeout, $info->profile, $info->options, $info->web);
+						$info->result = $this->Connect($info->url, $info->id, $info->timeout, $info->options, $info->web);
 						if (!$info->result["success"])
 						{
 							$info->keep = false;
@@ -205,7 +204,7 @@
 			}
 		}
 
-		public function ConnectAsync($helper, $key, $callback, $url, $id = false, $timeout = false, $profile = "auto", $options = array(), $web = false)
+		public function ConnectAsync($helper, $key, $callback, $url, $id = false, $timeout = false, $options = array(), $web = false)
 		{
 			$options["async"] = true;
 
@@ -216,7 +215,6 @@
 			$info->url = $url;
 			$info->id = $id;
 			$info->timeout = $timeout;
-			$info->profile = $profile;
 			$info->options = $options;
 			$info->web = $web;
 			$info->result = false;

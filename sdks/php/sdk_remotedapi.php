@@ -24,7 +24,7 @@
 		// Expected URL format:  rwr://clientapikey@host/webroutepath
 		// Where 'clientapikey' is the Remoted API server client API key and 'webroutepath' is the path to a connected remoted API.
 		// Multiple layers can be specified by separating URLs with spaces.
-		public static function Connect($url, $timeout = false, $profile = "auto", $options = array(), $web = false)
+		public static function Connect($url, $timeout = false, $options = array(), $web = false)
 		{
 			if (!class_exists("WebRoute", false))  require_once str_replace("\\", "/", dirname(__FILE__)) . "/webroute.php";
 			if (!class_exists("WebBrowser", false))  require_once str_replace("\\", "/", dirname(__FILE__)) . "/web_browser.php";
@@ -58,7 +58,7 @@
 
 				$url = HTTP::CondenseURL($url2);
 
-				$result = $wr->Connect($url, false, $timeout, $profile, $options, $web);
+				$result = $wr->Connect($url, false, $timeout, $options, $web);
 				if (!$result["success"])  return $result;
 
 				$options["fp"] = $result["fp"];

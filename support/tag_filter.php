@@ -1,6 +1,6 @@
 <?php
 	// CubicleSoft PHP Tag Filter class.  Can repair broken HTML.
-	// (C) 2017 CubicleSoft.  All Rights Reserved.
+	// (C) 2018 CubicleSoft.  All Rights Reserved.
 
 	class TagFilterStream
 	{
@@ -18,6 +18,9 @@
 			if (!isset($options["allow_namespaces"]))  $options["allow_namespaces"] = true;
 			if (!isset($options["process_attrs"]))  $options["process_attrs"] = array();
 			if (!isset($options["charset"]))  $options["charset"] = "UTF-8";
+			$options["charset"] = strtoupper($options["charset"]);
+			if (!isset($options["charset_tags"]))  $options["charset_tags"] = true;
+			if (!isset($options["charset_attrs"]))  $options["charset_attrs"] = true;
 			if (!isset($options["tag_name_map"]))  $options["tag_name_map"] = array();
 			if (!isset($options["untouched_tag_attr_keys"]))  $options["untouched_tag_attr_keys"] = array();
 			if (!isset($options["void_tags"]))  $options["void_tags"] = array();
@@ -49,6 +52,8 @@
 			$z = ord("Z");
 			$z2 = ord("z");
 			$hyphen = ord("-");
+			$underscore = ord("_");
+			$period = ord(".");
 			$colon = ord(":");
 			$zero = ord("0");
 			$nine = ord("9");
@@ -105,7 +110,9 @@
 
 								if ($this->options["keep_comments"])
 								{
-									$content2 = "<!-- " . htmlspecialchars(substr($content, $pos + 3, $pos2)) . " -->";
+									$content2 = substr($content, $pos + 3, $pos2);
+									if ($this->options["charset"] === "UTF-8" && !self::IsValidUTF8($content2))  $content2 = self::MakeValidUTF8($content2);
+									$content2 = "<!-- " . htmlspecialchars($content2, ENT_COMPAT | ENT_HTML5, $this->options["charset"]) . " -->";
 
 									// Let a callback handle any necessary changes.
 									if (isset($this->options["content_callback"]) && is_callable($this->options["content_callback"]))  call_user_func_array($this->options["content_callback"], array($this->stack, $result, &$content2, $this->options));
@@ -142,7 +149,9 @@
 						{
 							// Unknown.  Encode it.
 							$data = substr($content, $cx, strpos($content, $prefix, $cx) + strlen($prefix) - $cx);
-							$content2 = htmlspecialchars($data);
+							$content2 = $data;
+							if ($this->options["charset"] === "UTF-8" && !self::IsValidUTF8($content2))  $content2 = self::MakeValidUTF8($content2);
+							$content2 = htmlspecialchars($content2, ENT_COMPAT | ENT_HTML5, $this->options["charset"]);
 
 							// Let a callback handle any necessary changes.
 							if (isset($this->options["content_callback"]) && is_callable($this->options["content_callback"]))  call_user_func_array($this->options["content_callback"], array($this->stack, $result, &$content2, $this->options));
@@ -158,13 +167,22 @@
 
 					// Read the tag name.
 					$tagname = "";
+					$parse = false;
 					$cx = $startpos;
 					for (; $cx < $cy; $cx++)
 					{
 						$val = ord($content{$cx});
-						if (!(($val >= $a && $val <= $z) || ($val >= $a2 && $val <= $z2) || ($cx > $startpos && $val >= $zero && $val <= $nine) || ($this->options["allow_namespaces"] && $val == $colon)))  break;
+						if ($val > 127)  $parse = true;
+						else if (!(($val >= $a && $val <= $z) || ($val >= $a2 && $val <= $z2) || ($cx > $startpos && (($val >= $zero && $val <= $nine) || $val == $hyphen || $val == $underscore || $val == $period)) || ($this->options["allow_namespaces"] && $val == $colon)))  break;
 					}
-					$tagname = rtrim(substr($content, $startpos, $cx - $startpos), ":");
+					$tagname = substr($content, $startpos, $cx - $startpos);
+					if ($parse)
+					{
+						if ($this->options["charset_tags"] && $this->options["charset"] === "UTF-8")  $tagname = (self::IsValidUTF8($tagname) ? $tagname : self::MakeValidUTF8($tagname));
+						else  $tagname = preg_replace(($this->options["allow_namespaces"] ? '/[^A-Za-z0-9:._-]/' : '/[^A-Za-z0-9._-]/'), "", $tagname);
+					}
+					$tagname = rtrim($tagname, "._-:");
+					if (!$this->options["charset_tags"])  $tagname = preg_replace('/[^A-Za-z0-9:]/', "", $tagname);
 					$outtagname = ($this->options["lowercase_tags"] ? strtolower($tagname) : $tagname);
 					$tagname = strtolower($tagname);
 
@@ -213,14 +231,12 @@
 					}
 
 					// Process attributes/properties until a closing condition is encountered.
-					$state = "key";
+					$state = "name";
 					$voidtag = false;
 					$attrs = array();
 					do
 					{
-//echo "State:  " . $state . "\n";
-//echo "Content:\n" . $content . "\n";
-						if ($state === "key")
+						if ($state === "name")
 						{
 							// Find attribute key/property.
 							for ($x = $cx; $x < $cy; $x++)
@@ -286,14 +302,25 @@
 									if (($val >= $a && $val <= $z) || ($val >= $a2 && $val <= $z2))
 									{
 										$cx = $x;
+										$parse = false;
 
 										for (; $cx < $cy; $cx++)
 										{
-											$val = ord($content{$cx});
-											if (!(($val >= $a && $val <= $z) || ($val >= $a2 && $val <= $z2) || ($cx > $x && $val >= $zero && $val <= $nine) || ($cx > $x && $val == $hyphen) || ($this->options["allow_namespaces"] && $val == $colon)))  break;
+											if ($content{$cx} === " " || $content{$cx} === "=" || $content{$cx} === "\"" || $content{$cx} === "'" || $content{$cx} === "`" || $content{$cx} === ">" || $content{$cx} === "<" || $content{$cx} === "/" || $content{$cx} === "\0" || $content{$cx} === "\r" || $content{$cx} === "\n" || $content{$cx} === "\t")  break;
+											else if (ord($content{$cx}) > 127)  $parse = true;
 										}
 
-										$keyname = rtrim(substr($content, $x, $cx - $x), "-:");
+										$keyname = substr($content, $x, $cx - $x);
+										if ($parse && $this->options["charset_attrs"] && $this->options["charset"] === "UTF-8")
+										{
+											$keyname = preg_replace(($this->options["allow_namespaces"] ? '/[^A-Za-z0-9:._\-\x80-\xFF]/' : '/[^A-Za-z0-9._\-\x80-\xFF]/'), "", $keyname);
+											if (!self::IsValidUTF8($keyname))  $keyname = self::MakeValidUTF8($keyname);
+										}
+										else
+										{
+											$keyname = preg_replace(($this->options["allow_namespaces"] ? '/[^A-Za-z0-9:._-]/' : '/[^A-Za-z0-9._-]/'), "", $keyname);
+										}
+										$keyname = rtrim($keyname, "._-:");
 										if (!isset($this->options["untouched_tag_attr_keys"][$tagname]) && $this->options["lowercase_attrs"])  $keyname = strtolower($keyname);
 
 										$state = "equals";
@@ -303,7 +330,7 @@
 								}
 							}
 
-							if ($state === "key")
+							if ($state === "name")
 							{
 								$cx = $cy;
 
@@ -339,7 +366,7 @@
 
 									$attrs[$keyname] = true;
 
-									$state = "key";
+									$state = "name";
 
 									break;
 								}
@@ -352,7 +379,7 @@
 
 										$attrs[$keyname] = true;
 
-										$state = "key";
+										$state = "name";
 
 										break;
 									}
@@ -391,7 +418,7 @@
 										$value = substr($content, $x + 1, $pos - $x - 1);
 										$cx = $pos + 1;
 
-										$state = "key";
+										$state = "name";
 									}
 
 									break;
@@ -410,7 +437,7 @@
 
 									$value = substr($content, $x, $cx - $x);
 
-									$state = "key";
+									$state = "name";
 
 									break;
 								}
@@ -425,57 +452,57 @@
 								$state = "exit";
 							}
 
-							if ($state === "key")
+							if ($state === "name")
 							{
+								if ($this->options["charset"] === "UTF-8" && !self::IsValidUTF8($value))  $value = self::MakeValidUTF8($value);
 								$value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, $this->options["charset"]);
 
 								// Decode remaining entities.
 								$value2 = "";
-								while ($value != "")
+								$vx = 0;
+								$vy = strlen($value);
+								while ($vx < $vy)
 								{
-									$y = strlen($value);
-									$pos = strpos($value, "&#");
-									$pos2 = strpos($value, "\\");
-									if ($pos === false)  $pos = $y;
-									if ($pos2 === false)  $pos2 = $y;
+									$pos = strpos($value, "&#", $vx);
+									$pos2 = strpos($value, "\\", $vx);
+									if ($pos === false)  $pos = $vy;
+									if ($pos2 === false)  $pos2 = $vy;
 									if ($pos < $pos2)
 									{
 										// &#32 or &#x20 (optional trailing semi-colon)
-										$value2 .= substr($value, 0, $pos);
-										$value = substr($value, $pos + 2);
-										if ($value != "")
+										$value2 .= substr($value, $vx, $pos - $vx);
+										$vx = $pos + 2;
+										if ($vx < $vy)
 										{
-											if ($value{0} == "x" || $value{0} == "X")
+											if ($value{$vx} == "x" || $value{$vx} == "X")
 											{
-												$value = substr($value, 1);
-												if ($value != "")
+												$vx++;
+												if ($vx < $vy)
 												{
-													$y = strlen($value);
-													for ($x = 0; $x < $y; $x++)
+													for ($x = $vx; $x < $vy; $x++)
 													{
 														$val = ord($value{$x});
 														if (!(($val >= $a && $val <= $f) || ($val >= $a2 && $val <= $f2) || ($val >= $zero && $val <= $nine)))  break;
 													}
 
-													$num = hexdec(substr($value, 0, $x));
-													$value = substr($value, $x);
-													if ($value != "" && $value{0} == ";")  $value = substr($value, 1);
+													$num = hexdec(substr($value, $vx, $x - $vx));
+													$vx = $x;
+													if ($vx < $vy && $value{$vx} == ";")  $vx++;
 
 													$value2 .= self::UTF8Chr($num);
 												}
 											}
 											else
 											{
-												$y = strlen($value);
-												for ($x = 0; $x < $y; $x++)
+												for ($x = $vx; $x < $vy; $x++)
 												{
 													$val = ord($value{$x});
 													if (!($val >= $zero && $val <= $nine))  break;
 												}
 
-												$num = (int)substr($value, 0, $x);
-												$value = substr($value, $x);
-												if ($value != "" && $value{0} == ";")  $value = substr($value, 1);
+												$num = (int)substr($value, $vx, $x - $vx);
+												$vx = $x;
+												if ($vx < $vy && $value{$vx} == ";")  $vx++;
 
 												$value2 .= self::UTF8Chr($num);
 											}
@@ -484,28 +511,34 @@
 									else if ($pos2 < $pos)
 									{
 										// Unicode (e.g. \0020)
-										$value2 .= substr($value, 0, $pos2);
-										$value = substr($value, $pos2 + 1);
-										if ($value == "")  $value2 .= "\\";
+										$value2 .= substr($value, $vx, $pos2 - $vx);
+										$vx = $pos2 + 1;
+										if ($vx >= $vy)  $value2 .= "\\";
 										else
 										{
-											$y = strlen($value);
-											for ($x = 0; $x < $y; $x++)
+											for ($x = $vx; $x < $vy; $x++)
 											{
 												$val = ord($value{$x});
 												if (!(($val >= $a && $val <= $f) || ($val >= $a2 && $val <= $f2) || ($val >= $zero && $val <= $nine)))  break;
 											}
 
-											$num = hexdec(substr($value, 0, $x));
-											$value = substr($value, $x);
+											if ($x > $vx)
+											{
+												$num = hexdec(substr($value, $vx, $x - $vx));
+												$vx = $x;
 
-											$value2 .= self::UTF8Chr($num);
+												$value2 .= self::UTF8Chr($num);
+											}
+											else
+											{
+												$value2 .= "\\";
+											}
 										}
 									}
 									else
 									{
-										$value2 .= $value;
-										$value = "";
+										$value2 .= substr($value, $vx);
+										$vx = $vy;
 									}
 								}
 								$value = $value2;
@@ -566,6 +599,7 @@
 							if (!isset($funcresult["keep_interior"]))  $funcresult["keep_interior"] = true;
 							if (!isset($funcresult["pre_tag"]))  $funcresult["pre_tag"] = "";
 							if (!isset($funcresult["post_tag"]))  $funcresult["post_tag"] = "";
+							if (!isset($funcresult["state"]))  $funcresult["state"] = false;
 						}
 
 						if ($open && $funcresult["keep_tag"])
@@ -577,7 +611,11 @@
 								$opentag .= " " . $key;
 
 								if (is_array($val))  $val = implode(" ", $val);
-								if (is_string($val))  $opentag .= "=\"" . htmlspecialchars($val) . "\"";
+								if (is_string($val))
+								{
+									if ($this->options["charset"] === "UTF-8" && !self::IsValidUTF8($val))  $val = self::MakeValidUTF8($val);
+									$opentag .= "=\"" . htmlspecialchars($val, ENT_COMPAT | ENT_HTML5, $this->options["charset"]) . "\"";
+								}
 							}
 							if (($voidtag || isset($this->options["void_tags"][$tagname])) && $this->options["output_mode"] === "xml")
 							{
@@ -589,7 +627,7 @@
 
 							if (!isset($this->options["void_tags"][$tagname]) && $prefix === "")
 							{
-								array_unshift($this->stack, array("tag_num" => $this->options["tag_num"], "tag_name" => $tagname, "out_tag_name" => $outtagname, "attrs" => $attrs, "result" => $result, "open_tag" => $opentag, "close_tag" => true, "keep_interior" => $funcresult["keep_interior"], "post_tag" => $funcresult["post_tag"]));
+								array_unshift($this->stack, array("tag_num" => $this->options["tag_num"], "tag_name" => $tagname, "out_tag_name" => $outtagname, "attrs" => $attrs, "result" => $result, "open_tag" => $opentag, "close_tag" => true, "keep_interior" => $funcresult["keep_interior"], "post_tag" => $funcresult["post_tag"], "state" => $funcresult["state"]));
 								$result = "";
 
 								if ($voidtag)  $open = false;
@@ -605,7 +643,7 @@
 						{
 							if ($open)
 							{
-								array_unshift($this->stack, array("tag_num" => $this->options["tag_num"], "tag_name" => $tagname, "out_tag_name" => $outtagname, "attrs" => $attrs, "result" => $result, "open_tag" => "", "close_tag" => false, "keep_interior" => $funcresult["keep_interior"], "post_tag" => $funcresult["post_tag"]));
+								array_unshift($this->stack, array("tag_num" => $this->options["tag_num"], "tag_name" => $tagname, "out_tag_name" => $outtagname, "attrs" => $attrs, "result" => $result, "open_tag" => "", "close_tag" => false, "keep_interior" => $funcresult["keep_interior"], "post_tag" => $funcresult["post_tag"], "state" => $funcresult["state"]));
 								$result = "";
 							}
 
@@ -771,12 +809,143 @@
 			return $result;
 		}
 
+		public static function MakeValidUTF8($data)
+		{
+			$result = "";
+			$x = 0;
+			$y = strlen($data);
+			while ($x < $y)
+			{
+				$tempchr = ord($data[$x]);
+				if ($y - $x > 1)  $tempchr2 = ord($data[$x + 1]);
+				else  $tempchr2 = 0x00;
+				if ($y - $x > 2)  $tempchr3 = ord($data[$x + 2]);
+				else  $tempchr3 = 0x00;
+				if ($y - $x > 3)  $tempchr4 = ord($data[$x + 3]);
+				else  $tempchr4 = 0x00;
+				if (($tempchr >= 0x20 && $tempchr <= 0x7E) || $tempchr == 0x09 || $tempchr == 0x0A || $tempchr == 0x0D)
+				{
+					// ASCII minus control and special characters.
+					$result .= chr($tempchr);
+					$x++;
+				}
+				else if (($tempchr >= 0xC2 && $tempchr <= 0xDF) && ($tempchr2 >= 0x80 && $tempchr2 <= 0xBF))
+				{
+					// Non-overlong (2 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$x += 2;
+				}
+				else if ($tempchr == 0xE0 && ($tempchr2 >= 0xA0 && $tempchr2 <= 0xBF) && ($tempchr3 >= 0x80 && $tempchr3 <= 0xBF))
+				{
+					// Non-overlong (3 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$result .= chr($tempchr3);
+					$x += 3;
+				}
+				else if ((($tempchr >= 0xE1 && $tempchr <= 0xEC) || $tempchr == 0xEE || $tempchr == 0xEF) && ($tempchr2 >= 0x80 && $tempchr2 <= 0xBF) && ($tempchr3 >= 0x80 && $tempchr3 <= 0xBF))
+				{
+					// Normal/straight (3 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$result .= chr($tempchr3);
+					$x += 3;
+				}
+				else if ($tempchr == 0xED && ($tempchr2 >= 0x80 && $tempchr2 <= 0x9F) && ($tempchr3 >= 0x80 && $tempchr3 <= 0xBF))
+				{
+					// Non-surrogates (3 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$result .= chr($tempchr3);
+					$x += 3;
+				}
+				else if ($tempchr == 0xF0 && ($tempchr2 >= 0x90 && $tempchr2 <= 0xBF) && ($tempchr3 >= 0x80 && $tempchr3 <= 0xBF) && ($tempchr4 >= 0x80 && $tempchr4 <= 0xBF))
+				{
+					// Planes 1-3 (4 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$result .= chr($tempchr3);
+					$result .= chr($tempchr4);
+					$x += 4;
+				}
+				else if (($tempchr >= 0xF1 && $tempchr <= 0xF3) && ($tempchr2 >= 0x80 && $tempchr2 <= 0xBF) && ($tempchr3 >= 0x80 && $tempchr3 <= 0xBF) && ($tempchr4 >= 0x80 && $tempchr4 <= 0xBF))
+				{
+					// Planes 4-15 (4 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$result .= chr($tempchr3);
+					$result .= chr($tempchr4);
+					$x += 4;
+				}
+				else if ($tempchr == 0xF4 && ($tempchr2 >= 0x80 && $tempchr2 <= 0x8F) && ($tempchr3 >= 0x80 && $tempchr3 <= 0xBF) && ($tempchr4 >= 0x80 && $tempchr4 <= 0xBF))
+				{
+					// Plane 16 (4 bytes).
+					$result .= chr($tempchr);
+					$result .= chr($tempchr2);
+					$result .= chr($tempchr3);
+					$result .= chr($tempchr4);
+					$x += 4;
+				}
+				else  $x++;
+			}
+
+			return $result;
+		}
+
+		public static function IsValidUTF8($data)
+		{
+			$x = 0;
+			$y = strlen($data);
+			while ($x < $y)
+			{
+				$tempchr = ord($data{$x});
+				if (($tempchr >= 0x20 && $tempchr <= 0x7E) || $tempchr == 0x09 || $tempchr == 0x0A || $tempchr == 0x0D)  $x++;
+				else if ($tempchr < 0xC2)  return false;
+				else
+				{
+					$left = $y - $x;
+					if ($left > 1)  $tempchr2 = ord($data{$x + 1});
+					else  return false;
+
+					if (($tempchr >= 0xC2 && $tempchr <= 0xDF) && ($tempchr2 >= 0x80 && $tempchr2 <= 0xBF))  $x += 2;
+					else
+					{
+						if ($left > 2)  $tempchr3 = ord($data{$x + 2});
+						else  return false;
+
+						if ($tempchr3 < 0x80 || $tempchr3 > 0xBF)  return false;
+
+						if ($tempchr == 0xE0 && ($tempchr2 >= 0xA0 && $tempchr2 <= 0xBF))  $x += 3;
+						else if ((($tempchr >= 0xE1 && $tempchr <= 0xEC) || $tempchr == 0xEE || $tempchr == 0xEF) && ($tempchr2 >= 0x80 && $tempchr2 <= 0xBF))  $x += 3;
+						else if ($tempchr == 0xED && ($tempchr2 >= 0x80 && $tempchr2 <= 0x9F))  $x += 3;
+						else
+						{
+							if ($left > 3)  $tempchr4 = ord($data{$x + 3});
+							else  return false;
+
+							if ($tempchr4 < 0x80 || $tempchr4 > 0xBF)  return false;
+
+							if ($tempchr == 0xF0 && ($tempchr2 >= 0x90 && $tempchr2 <= 0xBF))  $x += 4;
+							else if (($tempchr >= 0xF1 && $tempchr <= 0xF3) && ($tempchr2 >= 0x80 && $tempchr2 <= 0xBF))  $x += 4;
+							else if ($tempchr == 0xF4 && ($tempchr2 >= 0x80 && $tempchr2 <= 0x8F))  $x += 4;
+							else  return false;
+						}
+					}
+				}
+			}
+
+			return true;
+		}
+
 		public static function UTF8Chr($num)
 		{
+			if ($num < 0 || ($num >= 0xD800 && $num <= 0xDFFF) || ($num >= 0xFDD0 && $num <= 0xFDEF) || ($num & 0xFFFE) == 0xFFFE)  return "";
+
 			if ($num <= 0x7F)  $result = chr($num);
-			else if ($num <= 0x7FF)  $result = chr(0xC0 | (($num & 0x7C0) >> 6)) . chr(0x80 | ($num & 0x3F));
-			else if ($num <= 0xFFFF)  $result = chr(0xE0 | (($num & 0xF000) >> 6)) . chr(0x80 | (($num & 0xFC0) >> 6)) . chr(0x80 | ($num & 0x3F));
-			else if ($num <= 0x1FFFFF)  $result = chr(0xF0 | (($num & 0x1C0000) >> 6)) . chr(0x80 | (($num & 0x3F000) >> 6)) . chr(0x80 | (($num & 0xFC0) >> 6)) . chr(0x80 | ($num & 0x3F));
+			else if ($num <= 0x7FF)  $result = chr(0xC0 | ($num >> 6)) . chr(0x80 | ($num & 0x3F));
+			else if ($num <= 0xFFFF)  $result = chr(0xE0 | ($num >> 12)) . chr(0x80 | (($num >> 6) & 0x3F)) . chr(0x80 | ($num & 0x3F));
+			else if ($num <= 0x10FFFF)  $result = chr(0xF0 | ($num >> 18)) . chr(0x80 | (($num >> 12) & 0x3F)) . chr(0x80 | (($num  >> 6) & 0x3F)) . chr(0x80 | ($num & 0x3F));
 			else  $result = "";
 
 			return $result;
@@ -949,7 +1118,7 @@
 		}
 	}
 
-	class TagFilterNodeIterator implements Iterator
+	class TagFilterNodeIterator implements Iterator, Countable
 	{
 		private $tfn, $ids, $x, $y;
 
@@ -984,6 +1153,11 @@
 		public function next()
 		{
 			$this->x++;
+		}
+
+		public function count()
+		{
+			return $this->y;
 		}
 
 		public function Filter($query, $cachequery = true)
@@ -1071,7 +1245,7 @@
 						case "pseudo-class":
 						{
 							$pc = $rules[$x]["pseudo"];
-							$valid = ($pc === "first-child" || $pc === "last-child" || $pc === "only-child" || $pc === "nth-child" || $pc === "nth-last-child" || $pc === "first-of-type" || $pc === "last-of-type" || $pc === "only-of-type" || $pc === "nth-of-type" || $pc === "nth-last-of-type" || $pc === "empty");
+							$valid = ($pc === "first-child" || $pc === "last-child" || $pc === "only-child" || $pc === "nth-child" || $pc === "nth-last-child" || $pc === "first-child-all" || $pc === "last-child-all" || $pc === "only-child-all" || $pc === "nth-child-all" || $pc === "nth-last-child-all" || $pc === "first-of-type" || $pc === "last-of-type" || $pc === "only-of-type" || $pc === "nth-of-type" || $pc === "nth-last-of-type" || $pc === "empty");
 
 							if ($valid && substr($rules[$x]["pseudo"], 0, 4) === "nth-" && (!isset($rules[$x]["a"]) || !isset($rules[$x]["b"])))  $valid = false;
 
@@ -1153,6 +1327,7 @@
 			$numrules = count($rules);
 
 			$result = array();
+			$childcache = array();
 			$oftypecache = array();
 			$rootid = $id;
 			$pos = 0;
@@ -1208,6 +1383,31 @@
 										$nth = (substr($rules[$x][$x2]["pseudo"], 0, 4) === "nth-");
 										if ($nth && (!isset($rules[$x][$x2]["a"]) || !isset($rules[$x][$x2]["b"])))  return array("success" => false, "error" => "Pseudo-class ':" . $rules[$x][$x2]["pseudo"] . "(n)' requires an expression for 'n'.", "errorcode" => "missing_pseudo_class_expression");
 
+										if (substr($rules[$x][$x2]["pseudo"], -6) === "-child")
+										{
+											if (!isset($childcache[$id2]))
+											{
+												$children = 0;
+												foreach ($this->nodes[$pid]["children"] as $id3)
+												{
+													if ($this->nodes[$id3]["type"] === "element")
+													{
+														$childcache[$id3] = array("cx" => $children);
+
+														$children++;
+													}
+												}
+
+												foreach ($this->nodes[$pid]["children"] as $id3)
+												{
+													if ($this->nodes[$id3]["type"] === "element")  $childcache[$id3]["cy"] = $children;
+												}
+											}
+
+											$cx = $childcache[$id2]["cx"];
+											$cy = $childcache[$id2]["cy"];
+										}
+
 										if (substr($rules[$x][$x2]["pseudo"], -8) === "-of-type")
 										{
 											if (!isset($oftypecache[$id2]))
@@ -1242,11 +1442,16 @@
 
 										switch ($rules[$x][$x2]["pseudo"])
 										{
-											case "first-child":  $backtrack = ($this->nodes[$id2]["parentpos"] !== 0);  break;
-											case "last-child":  $backtrack = ($this->nodes[$id2]["parentpos"] !== $pnum - 1);  break;
-											case "only-child":  $backtrack = ($pnum !== 1);  break;
-											case "nth-child":  $px = $this->nodes[$id2]["parentpos"];  break;
-											case "nth-last-child":  $px = $pnum - $this->nodes[$id2]["parentpos"] - 1;  break;
+											case "first-child":  $backtrack = ($cx !== 0);  break;
+											case "last-child":  $backtrack = ($cx !== $cy - 1);  break;
+											case "only-child":  $backtrack = ($cy !== 1);  break;
+											case "nth-child":  $px = $cx;  break;
+											case "nth-last-child":  $px = $cy - $cx - 1;  break;
+											case "first-child-all":  $backtrack = ($this->nodes[$id2]["parentpos"] !== 0);  break;
+											case "last-child-all":  $backtrack = ($this->nodes[$id2]["parentpos"] !== $pnum - 1);  break;
+											case "only-child-all":  $backtrack = ($pnum !== 1);  break;
+											case "nth-child-all":  $px = $this->nodes[$id2]["parentpos"];  break;
+											case "nth-last-child-all":  $px = $pnum - $this->nodes[$id2]["parentpos"] - 1;  break;
 											case "first-of-type":  $backtrack = ($tx !== 0);  break;
 											case "last-of-type":  $backtrack = ($tx !== $ty - 1);  break;
 											case "only-of-type":  $backtrack = ($ty !== 1);  break;
@@ -1339,6 +1544,7 @@
 												if ($id2 !== $rootid && $this->nodes[$id2]["parent"])
 												{
 													$id2 = $this->nodes[$id2]["parent"];
+													$rules[$x][$x2]["lastid"] = $id2;
 
 													break;
 												}
@@ -1349,6 +1555,7 @@
 												if ($this->nodes[$id2]["parentpos"] != 0)
 												{
 													$id2 = $this->nodes[$this->nodes[$id2]["parent"]]["children"][$this->nodes[$id2]["parentpos"] - 1];
+													$rules[$x][$x2]["lastid"] = $id2;
 
 													break;
 												}
@@ -1446,6 +1653,8 @@
 			if (!isset($options["output_mode"]))  $options["output_mode"] = "html";
 			if (!isset($options["post_elements"]))  $options["post_elements"] = array();
 			if (!isset($options["no_content_elements"]))  $options["no_content_elements"] = array("script" => true, "style" => true);
+			if (!isset($options["charset"]))  $options["charset"] = "UTF-8";
+			$options["charset"] = strtoupper($options["charset"]);
 
 			$types2 = explode(",", $options["types"]);
 			$types = array();
@@ -1476,7 +1685,7 @@
 									$result .= " " . $key;
 
 									if (is_array($val))  $val = implode(" ", $val);
-									if (is_string($val))  $result .= "=\"" . htmlspecialchars($val) . "\"";
+									if (is_string($val))  $result .= "=\"" . htmlspecialchars($val, ENT_COMPAT | ENT_HTML5, $options["charset"]) . "\"";
 								}
 								$result .= (!$maxpos && $options["output_mode"] === "xml" ? " />" : ">");
 							}
@@ -1496,12 +1705,12 @@
 
 				if ($pos >= $maxpos)
 				{
-					if ($maxpos && $this->nodes[$id]["type"] === "element")
+					if ($this->nodes[$id]["type"] === "element" && is_array($this->nodes[$id]["children"]))
 					{
 						if (($include || $rootid != $id) && isset($types[$this->nodes[$id]["type"]]))  $result .= "</" . $this->nodes[$id]["tag"] . ">";
-
-						if (isset($options["post_elements"][$this->nodes[$id]["type"]]))  $result .= $options["post_elements"][$this->nodes[$id]["type"]];
 					}
+
+					if ($this->nodes[$id]["type"] === "element" && isset($options["post_elements"][$this->nodes[$id]["tag"]]))  $result .= $options["post_elements"][$this->nodes[$id]["tag"]];
 
 					if ($rootid === $id)  break;
 
@@ -1787,6 +1996,116 @@
 			return $this->Move($src, $newpid, $newpos);
 		}
 
+		private static function SplitAt_CopyNode($nodes, &$pid, $node)
+		{
+			// Copy the node.
+			$node["parent"] = $pid;
+			$node["parentpos"] = count($nodes->nodes[$pid]["children"]);
+			if (isset($node["children"]))  $node["children"] = (is_array($node["children"]) ? array() : false);
+
+			// Attach the node.
+			$nodes->nodes[$nodes->nextid] = $node;
+			$nodes->nodes[$pid]["children"][] = $nodes->nextid;
+
+			$pid = $nodes->nextid;
+
+			$nodes->nextid++;
+		}
+
+		public function SplitAt($ids, $keepidparents = false)
+		{
+			$ids2 = array();
+			if (!is_array($ids))  $ids = array($ids);
+			foreach ($ids as $id)  $ids2[(int)$id] = true;
+			unset($ids2[0]);
+
+			$result = array();
+
+			// Walk the entire set of nodes, cloning until an ID match occurs (if any).
+			$newnodes = new TagFilterNodes();
+			$newpid = 0;
+			$id = 0;
+			$pos = 0;
+			$maxpos = (isset($this->nodes[$id]["children"]) && is_array($this->nodes[$id]["children"]) ? count($this->nodes[$id]["children"]) : 0);
+			do
+			{
+				if (!$pos)
+				{
+					if (isset($ids2[$id]) && count($newnodes->nodes[0]["children"]))
+					{
+						// Found an ID match.
+						$result[] = $newnodes;
+						$newnodes = new TagFilterNodes();
+						$newpid = 0;
+
+						if ($keepidparents)
+						{
+							$stack = array();
+							$id2 = $this->nodes[$id]["parent"];
+							while ($id2)
+							{
+								$stack[] = $id2;
+
+								$id2 = $this->nodes[$id2]["parent"];
+							}
+							$stack = array_reverse($stack);
+							foreach ($stack as $id2)
+							{
+								self::SplitAt_CopyNode($newnodes, $newpid, $this->nodes[$id2]);
+							}
+						}
+					}
+
+					if ($id)  self::SplitAt_CopyNode($newnodes, $newpid, $this->nodes[$id]);
+				}
+
+				if ($pos >= $maxpos)
+				{
+					if (!$id)  break;
+
+					if (isset($ids2[$id]))
+					{
+						// Start a new set of nodes.
+						$result[] = $newnodes;
+						$newnodes = new TagFilterNodes();
+						$newpid = 0;
+
+						$stack = array();
+						$id2 = $this->nodes[$id]["parent"];
+						while ($id2)
+						{
+							$stack[] = $id2;
+
+							$id2 = $this->nodes[$id2]["parent"];
+						}
+						$stack = array_reverse($stack);
+						foreach ($stack as $id2)
+						{
+							self::SplitAt_CopyNode($newnodes, $newpid, $this->nodes[$id2]);
+						}
+					}
+					else
+					{
+						$newpid = $newnodes->nodes[$newpid]["parent"];
+					}
+
+					$pos = $this->nodes[$id]["parentpos"] + 1;
+					$id = $this->nodes[$id]["parent"];
+					$maxpos = count($this->nodes[$id]["children"]);
+				}
+				else
+				{
+					$id = $this->nodes[$id]["children"][$pos];
+					$pos = 0;
+					$maxpos = (isset($this->nodes[$id]["children"]) && is_array($this->nodes[$id]["children"]) ? count($this->nodes[$id]["children"]) : 0);
+				}
+			} while (1);
+
+			if (!count($result) || count($newnodes->nodes[0]["children"]))  $result[] = $newnodes;
+
+			return $result;
+		}
+
 		public function GetOuterHTML($id, $mode = "html")
 		{
 			return $this->Implode($id, array("output_mode" => $mode));
@@ -1971,6 +2290,8 @@
 				"keep_comments" => false,
 				"allow_namespaces" => true,
 				"charset" => "UTF-8",
+				"charset_tags" => true,
+				"charset_attrs" => true,
 				"output_mode" => "html",
 				"lowercase_tags" => true,
 				"lowercase_attrs" => true,

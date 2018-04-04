@@ -48,7 +48,7 @@
 
 			$url = HTTP::CondenseURL($url);
 
-			return $this->rws->Connect($url, $url2, "auto", $options);
+			return $this->rws->Connect($url, $url2, $options);
 		}
 
 		// Overrides the default behavior to start a server on a given host and port.
@@ -145,7 +145,7 @@
 						$data["options"] = $options;
 
 						// Due to the async setting, this will only initiate the connection.  No data is actually sent/received at this point.
-						$result = $this->rwr->Connect($data["url"], $data["id"], $data["timeout"], "auto", $data["options"]);
+						$result = $this->rwr->Connect($data["url"], $data["id"], $data["timeout"], $data["options"]);
 						if ($result["success"])
 						{
 							$result["data"] = $data;
@@ -189,7 +189,7 @@
 					{
 						$data["retries"]--;
 
-						$result = $this->rwr->Connect($data["url"], $data["id"], $data["timeout"], "auto", $data["options"]);
+						$result = $this->rwr->Connect($data["url"], $data["id"], $data["timeout"], $data["options"]);
 						if ($result["success"])
 						{
 							$result["data"] = $data;

@@ -59,7 +59,7 @@
 					"sslopts" => self::InitSSLOpts(array("verify_peer" => false, "capture_peer_cert_chain" => true))
 				);
 
-				$result = $this->web->Process($this->host . "/", "auto", $options);
+				$result = $this->web->Process($this->host . "/", $options);
 
 				if (!$result["success"])
 				{
@@ -418,7 +418,7 @@
 				$options2 = array_merge($options2, $options);
 			}
 
-			$result = $this->web->Process($url . "/files/v1/" . $apipath, "auto", $options2);
+			$result = $this->web->Process($url . "/files/v1/" . $apipath, $options2);
 
 			if (!$result["success"] && $this->fp !== false)
 			{
