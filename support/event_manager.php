@@ -1,6 +1,6 @@
 <?php
 	// Event manager class.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2018 CubicleSoft.  All Rights Reserved.
 
 	class EventManager
 	{
@@ -12,10 +12,16 @@
 			$this->nextid = 1;
 		}
 
-		public function Register($eventname, $obj, $funcname)
+		public function Register($eventname, $objorfuncname, $funcname = false)
 		{
+			if ($objorfuncname === false)
+			{
+				$objorfuncname = $funcname;
+				$funcname = false;
+			}
+
 			if (!isset($this->events[$eventname]))  $this->events[$eventname] = array("used" => 0, "callbacks" => array());
-			$this->events[$eventname]["callbacks"][$this->nextid] = ($obj === false ? $funcname : array($obj, $funcname));
+			$this->events[$eventname]["callbacks"][$this->nextid] = ($funcname === false ? $objorfuncname : array($obj, $funcname));
 
 			$id = $this->nextid;
 			$this->nextid++;
