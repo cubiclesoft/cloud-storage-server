@@ -32,7 +32,8 @@ Uses
 * Build your own private cloud storage solution.
 * Use [Cloud Backup](http://cubiclesoft.com/cloud-backup) to send encrypted data to a friend's house who lives in the same town.  Rapidly recover lost data in the event of catastropic loss (e.g. fire, flood).
 * Back up data from deep behind corporate firewalls via [Remoted API Server](https://github.com/cubiclesoft/remoted-api-server).
-* See the Nifty Extensions section.
+* Customized, user-oriented, permission-based APIs.
+* See the Nifty Extensions section for more ideas.
 
 Getting Started
 ---------------
