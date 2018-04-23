@@ -116,7 +116,7 @@
 				else  $folders[$item["name"]] = $item;
 			}
 
-			return array("success" => true, "folders" => $folders, "files" => $files);
+			return array("success" => true, "id" => $folderid, "folders" => $folders, "files" => $files);
 		}
 
 		public function GetObjectIDByName($folderid, $name)
@@ -139,9 +139,9 @@
 			return $result;
 		}
 
-		public function GetTrashList()
+		public function GetTrashList($folderid = false)
 		{
-			return $this->RunAPI("GET", "trash/list");
+			return $this->RunAPI("GET", "trash/list" . ($folderid !== false ? "/" . $folderid : ""));
 		}
 
 		public function GetObjectByID($id)
