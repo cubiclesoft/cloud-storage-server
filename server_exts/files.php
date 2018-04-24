@@ -1321,6 +1321,7 @@
 					$result = array(
 						"success" => true,
 						"id" => ($guestrow === false ? "0" : $guestrow->serverexts["files"]["rootid"]),
+						"time" => time(),
 						"download" => ($userrow->serverexts["files"]["read"] && ($guestrow === false || $guestrow->serverexts["files"]["read"])),
 						"upload" => ($userrow->serverexts["files"]["write"] && ($guestrow === false || $guestrow->serverexts["files"]["write"])),
 						"delete" => ($userrow->serverexts["files"]["delete"] && ($guestrow === false || $guestrow->serverexts["files"]["delete"])),
