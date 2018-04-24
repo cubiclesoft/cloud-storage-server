@@ -3,7 +3,7 @@ Cloud Storage Server
 
 An open source, extensible, self-hosted cloud storage API.  The base server implements a complete file system similar to Amazon Cloud Drive, B2 Cloud Storage, OpenDrive, and other providers.  Just don't expect to build a scalable service with this software.
 
-Cloud Storage Server pairs quite nicely with [Cloud Backup](http://cubiclesoft.com/cloud-backup).
+Cloud Storage Server pairs quite nicely with [Cloud Backup](https://github.com/cubiclesoft/cloud-backup) and [Cloud Storage Tools](https://github.com/cubiclesoft/cloud-storage-tools).
 
 [![Donate](https://cubiclesoft.com/res/donate-shield.png)](https://cubiclesoft.com/donate/)
 
@@ -21,7 +21,6 @@ Features
 * Secure.  Automatically generates and signs multi-year root and server SSL certificates.  You can use other certs if you want OR proxy requests from a properly configured web server.
 * Per-user quota management.
 * Per-user daily network transfer limits.
-* And much, much more.  See the official documentation for a more complete feature list.
 * Also has a liberal open source license.  MIT or LGPL, your choice.
 * Designed for relatively painless integration into your environment.
 * Sits on GitHub for all of that pull request and issue tracker goodness to easily submit changes and ideas respectively.
@@ -31,7 +30,7 @@ Uses
 
 * Build your own private cloud storage solution.
 * Use [Cloud Backup](http://cubiclesoft.com/cloud-backup) to send encrypted data to a friend's house who lives in the same town.  Rapidly recover lost data in the event of catastropic loss (e.g. fire, flood).
-* Back up data from deep behind corporate firewalls via [Remoted API Server](https://github.com/cubiclesoft/remoted-api-server).
+* Backup data from deep behind corporate firewalls via [Remoted API Server](https://github.com/cubiclesoft/remoted-api-server).
 * Customized, user-oriented, permission-based APIs.
 * See the Nifty Extensions section for more ideas.
 
