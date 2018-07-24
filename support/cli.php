@@ -1,6 +1,6 @@
 <?php
 	// CubicleSoft command-line functions.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2018 CubicleSoft.  All Rights Reserved.
 
 	class CLI
 	{
@@ -424,13 +424,19 @@
 			);
 		}
 
-		public static function DisplayTimer($msg)
+		public static function UpdateTimer()
 		{
 			$ts = microtime(true);
 			$diff = $ts - self::$timerinfo["diff"];
 			self::$timerinfo["diff"] = $ts;
 
-			echo $msg . " (Diff:  " . sprintf("%.2f", $diff) . ", Total:  " . sprintf("%.2f", $ts - self::$timerinfo["start"]) . ")\n";
+			$result = array(
+				"success" => true,
+				"diff" => sprintf("%.2f", $diff),
+				"total" => sprintf("%.2f", $ts - self::$timerinfo["start"])
+			);
+
+			return $result;
 		}
 	}
 ?>
