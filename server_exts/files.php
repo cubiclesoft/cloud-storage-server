@@ -1,12 +1,12 @@
 <?php
 	// Cloud Storage Server files extension.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2018 CubicleSoft.  All Rights Reserved.
 
 	class CSS_Extension_files
 	{
 		public function Install()
 		{
-			global $rootpath, $config;
+			global $rootpath, $config, $args, $suppressoutput;
 
 			@mkdir($rootpath . "/user_init/files", 0770, true);
 			@chmod($rootpath . "/user_init/files", 02770);
@@ -14,8 +14,7 @@
 
 			if (!isset($config["ext_file_uploadlimit"]))
 			{
-				echo "[Files Extension] Default file upload limit (in bytes, KB, MB, GB, or TB; -1 for unlimited file limit):  ";
-				$limit = trim(fgets(STDIN));
+				$limit = CLI::GetUserInputWithArgs($args, "ext_files_uploadlimit", "[Files Ext] Default file upload limit (in bytes, KB, MB, GB, or TB; -1 for unlimited transfer)", "-1", "", $suppressoutput);
 				$config["ext_file_uploadlimit"] = $limit;
 
 				CSS_SaveConfig($config);
@@ -24,17 +23,12 @@
 
 		public function AddUserExtension($userrow)
 		{
-			echo "[Files Ext] Allow file download access (Y/N):  ";
-			$read = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+			global $args, $suppressoutput;
 
-			echo "[Files Ext] Allow folder write, file upload, trash access (Y/N):  ";
-			$write = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
-
-			echo "[Files Ext] Allow permanent folder and file delete access (Y/N):  ";
-			$delete = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
-
-			echo "[Files Ext] Allow guest creation/deletion (Y/N):  ";
-			$guests = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+			$read = CLI::GetYesNoUserInputWithArgs($args, "ext_read", "[Files Ext] Allow file download access", "Y", "", $suppressoutput);
+			$write = CLI::GetYesNoUserInputWithArgs($args, "ext_write", "[Files Ext] Allow folder write, file upload, trash access", "Y", "", $suppressoutput);
+			$delete = CLI::GetYesNoUserInputWithArgs($args, "ext_delete", "[Files Ext] Allow permanent folder and file delete access", "Y", "", $suppressoutput);
+			$guests = CLI::GetYesNoUserInputWithArgs($args, "ext_guest", "[Files Ext] Allow guest creation/deletion", "Y", "", $suppressoutput);
 
 			return array("success" => true, "info" => array("read" => $read, "write" => $write, "delete" => $delete, "guests" => $guests));
 		}

@@ -1,6 +1,6 @@
 <?php
 	// Cloud storage server installation tool.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2018 CubicleSoft.  All Rights Reserved.
 
 	if (!isset($_SERVER["argc"]) || !$_SERVER["argc"])
 	{
@@ -21,14 +21,23 @@
 	@rename($rootpath . "/cert.pem", $rootpath . "/data/cert.pem");
 	@rename($rootpath . "/main.db", $rootpath . "/data/main.db");
 
+	require_once $rootpath . "/support/cli.php";
 	require_once $rootpath . "/support/css_functions.php";
+
+	// Process the command-line options.
+	$options = array(
+		"shortmap" => array(
+		),
+		"rules" => array(
+		),
+		"userinput" => "="
+	);
+	$args = CLI::ParseCommandLine($options);
+	$suppressoutput = false;
 
 	$config = CSS_LoadConfig();
 
 	// Get the user the software will generally run as.
-	require_once $rootpath . "/support/cli.php";
-	$suppressoutput = false;
-
 	if (function_exists("posix_geteuid"))
 	{
 		$uid = posix_geteuid();
@@ -199,8 +208,7 @@
 
 	if (!isset($config["host"]))
 	{
-		echo "Remoted API server URL (leave blank unless you have one):  ";
-		$host = trim(fgets(STDIN));
+		$host = CLI::GetUserInputWithArgs($args, "remotedapi", "Remoted API server URL (leave blank unless you have one)", "", "The next question asks for a Remoted API server URL.  If you are connecting this Cloud Storage Server installation to Remoted API server, then enter the URL for it.  Otherwise, leave it blank.", $suppressoutput);
 		if ($host !== "")
 		{
 			$config["host"] = $host;
@@ -209,11 +217,8 @@
 		}
 		else
 		{
-			echo "IPv6 (Y/N):  ";
-			$ipv6 = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
-
-			echo "Localhost only and no SSL (Y/N):  ";
-			$localhost = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
+			$ipv6 = CLI::GetYesNoUserInputWithArgs($args, "ipv6", "IPv6", "N", "", $suppressoutput);
+			$localhost = CLI::GetYesNoUserInputWithArgs($args, "localhostonly", "Localhost only and no SSL", "Y", "", $suppressoutput);
 
 			$config["host"] = ($ipv6 ? ($localhost ? "[::1]" : "[::0]") : ($localhost ? "127.0.0.1" : "0.0.0.0"));
 			if ($localhost)  $config["addlocalhost"] = false;
@@ -224,8 +229,7 @@
 
 	if (!isset($config["publichost"]))
 	{
-		echo "Hostname (from the public perspective - e.g. something.com):  ";
-		$publichost = trim(fgets(STDIN));
+		$publichost = CLI::GetUserInputWithArgs($args, "publichost", "Hostname", "localhost", "The next question asks for the hostname from a public perspective such as a domain name.  Only used to construct base URLs for use with SDKs.", $suppressoutput);
 		$config["publichost"] = $publichost;
 
 		CSS_SaveConfig($config);
@@ -233,10 +237,8 @@
 
 	if (!isset($config["port"]))
 	{
-		echo "Port (leave blank for the default - 9892):  ";
-		$port = trim(fgets(STDIN));
-		if ($port === "")  $port = 9892;
-		$port = (int)$port;
+		$port = (int)CLI::GetUserInputWithArgs($args, "port", "Port", "9892", "The next question asks for the TCP/IP port to run the server on.  If this will be an internal localhost-only server, use another port like 9893.", $suppressoutput);
+
 		if ($port < 0 || $port > 65535)  $port = 9892;
 		$config["port"] = $port;
 
@@ -245,9 +247,7 @@
 
 	if (!isset($config["addlocalhost"]))
 	{
-		echo "Add localhost only server without SSL at port " . ($config["port"] + 1) . " (Y/N):  ";
-		$addlocalhost = (substr(strtoupper(trim(fgets(STDIN))), 0, 1) == "Y");
-
+		$addlocalhost = CLI::GetYesNoUserInputWithArgs($args, "addlocalhost", "Add localhost only server without SSL at port " . ($config["port"] + 1), "Y", "", $suppressoutput);
 		$config["addlocalhost"] = $addlocalhost;
 
 		CSS_SaveConfig($config);
@@ -255,21 +255,20 @@
 
 	if (!isset($config["basepath"]))
 	{
-		echo "Default user base path (where files will be stored):  ";
-		$path = trim(fgets(STDIN));
-		$config["basepath"] = $path;
+		$basepath = CLI::GetUserInputWithArgs($args, "basepath", "Default user base path", $rootpath . "/users", "The next question asks for the base path where user files will be stored.", $suppressoutput);
+		$config["basepath"] = $basepath;
 
 		CSS_SaveConfig($config);
 	}
 
 	// Adjust base path permissions.
+	@mkdir($config["basepath"]);
 	@chmod($config["basepath"], 02770);
 	if ($config["serviceuser"] !== "")  @chown($config["basepath"], $config["serviceuser"]);
 
 	if (!isset($config["transferlimit"]))
 	{
-		echo "Default daily user transfer limit (in bytes, KB, MB, GB, or TB; -1 for unlimited transfer):  ";
-		$transferlimit = trim(fgets(STDIN));
+		$transferlimit = CLI::GetUserInputWithArgs($args, "transferlimit", "Default daily user transfer limit (in bytes, KB, MB, GB, or TB; -1 for unlimited transfer)", "-1", "", $suppressoutput);
 		$config["transferlimit"] = $transferlimit;
 
 		CSS_SaveConfig($config);
@@ -277,8 +276,7 @@
 
 	if (!isset($config["quota"]))
 	{
-		echo "Default user quota (in bytes, KB, MB, GB, or TB; -1 for unlimited storage):  ";
-		$quota = trim(fgets(STDIN));
+		$quota = CLI::GetUserInputWithArgs($args, "quota", "Default user quota (in bytes, KB, MB, GB, or TB; -1 for unlimited storage)", "-1", "", $suppressoutput);
 		$config["quota"] = $quota;
 
 		CSS_SaveConfig($config);
