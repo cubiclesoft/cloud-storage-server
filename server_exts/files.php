@@ -28,7 +28,7 @@
 			$read = CLI::GetYesNoUserInputWithArgs($args, "ext_read", "[Files Ext] Allow file download access", "Y", "", $suppressoutput);
 			$write = CLI::GetYesNoUserInputWithArgs($args, "ext_write", "[Files Ext] Allow folder write, file upload, trash access", "Y", "", $suppressoutput);
 			$delete = CLI::GetYesNoUserInputWithArgs($args, "ext_delete", "[Files Ext] Allow permanent folder and file delete access", "Y", "", $suppressoutput);
-			$guests = CLI::GetYesNoUserInputWithArgs($args, "ext_guest", "[Files Ext] Allow guest creation/deletion", "Y", "", $suppressoutput);
+			$guests = CLI::GetYesNoUserInputWithArgs($args, "ext_guests", "[Files Ext] Allow guest creation/deletion", "Y", "", $suppressoutput);
 
 			return array("success" => true, "info" => array("read" => $read, "write" => $write, "delete" => $delete, "guests" => $guests));
 		}
