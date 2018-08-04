@@ -142,7 +142,9 @@
 			if (strtoupper(substr($os, 0, 3)) == "WIN")  $result = $this->rootpath . "\\servicemanager.exe";
 			else
 			{
-				if (strtoupper(substr($os, 0, 6)) == "DARWIN")  $result = $this->rootpath . "/servicemanager_mac";
+				if (file_exists($this->rootpath . "/servicemanager_nix"))  $result = $this->rootpath . "/servicemanager_nix";
+				else if (file_exists("/usr/local/bin/servicemanager"))  $result = "/usr/local/bin/servicemanager";
+				else if (strtoupper(substr($os, 0, 6)) == "DARWIN")  $result = $this->rootpath . "/servicemanager_mac";
 				else if (PHP_INT_SIZE >= 8)  $result = $this->rootpath . "/servicemanager_nix_64";
 				else  $result = $this->rootpath . "/servicemanager_nix_32";
 
