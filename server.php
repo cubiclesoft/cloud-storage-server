@@ -346,8 +346,18 @@
 									else
 									{
 										$result2 = $serverexts[$tracker[$servernum][$id]["currext"]]->ProcessAPI($client->request["method"], $tracker[$servernum][$id]["pathparts"], $client, $userrow, $tracker[$servernum][$id]["guestrow"], $data);
-										if ($result2 === false)  $webserver->RemoveClient($id);
-										else if (!is_array($result2))  $tracker[$servernum][$id]["data"] = $data;
+										if ($result2 === false)
+										{
+											$webserver->RemoveClient($id);
+
+											echo "Server " . $servernum . ", Client ID " . $id . " removed.\n";
+
+											unset($tracker[$servernum][$id]);
+										}
+										else if (!is_array($result2))
+										{
+											$tracker[$servernum][$id]["data"] = $data;
+										}
 									}
 								}
 							}
