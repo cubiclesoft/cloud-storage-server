@@ -120,7 +120,6 @@
 
 	$wsserver = new WebSocketServer();
 	$webservers = array();
-	$tracker = array();
 	$webserver = (RemotedAPIWebServer::IsRemoted($config["host"]) ? new RemotedAPIWebServer() : new WebServer());
 
 	// Enable writing files to the system.
@@ -144,7 +143,6 @@
 	}
 
 	$webservers[] = $webserver;
-	$tracker[] = array();
 
 	if ($config["addlocalhost"])
 	{
@@ -171,7 +169,6 @@
 		}
 
 		$webservers[] = $webserver;
-		$tracker[] = array();
 	}
 
 	echo "Ready.\n";
@@ -180,8 +177,6 @@
 	$reloadfilename = __FILE__ . ".notify.reload";
 	$lastservicecheck = time();
 	$running = true;
-
-	$tracker2 = array();
 
 	do
 	{
@@ -216,15 +211,15 @@
 			// Handle active clients.
 			foreach ($result["clients"] as $id => $client)
 			{
-				if (!isset($tracker[$servernum][$id]))
+				if ($client->appdata === false)
 				{
 					echo "Server " . $servernum . ", Client ID " . $id . " connected.\n";
 
-					$tracker[$servernum][$id] = array("validapikey" => false, "userrow" => false, "guestrow" => false, "currext" => false, "pathparts" => false);
+					$client->appdata = array("validapikey" => false, "userrow" => false, "guestrow" => false, "currext" => false, "pathparts" => false);
 				}
 
 				// Check for a valid API key.
-				if (!$tracker[$servernum][$id]["validapikey"] && (isset($client->headers["X-Apikey"]) || isset($client->requestvars["apikey"])))
+				if (!$client->appdata["validapikey"] && (isset($client->headers["X-Apikey"]) || isset($client->requestvars["apikey"])))
 				{
 					$apikey = explode("-", (isset($client->headers["X-Apikey"]) ? $client->headers["X-Apikey"] : $client->requestvars["apikey"]));
 					if (count($apikey) == 2)
@@ -234,8 +229,8 @@
 						{
 							echo "Valid user API key used.\n";
 
-							$tracker[$servernum][$id]["validapikey"] = true;
-							$tracker[$servernum][$id]["userrow"] = $result2["info"];
+							$client->appdata["validapikey"] = true;
+							$client->appdata["userrow"] = $result2["info"];
 						}
 					}
 					else if (count($apikey) == 3)
@@ -248,37 +243,37 @@
 							{
 								echo "Valid guest API key used.\n";
 
-								$tracker[$servernum][$id]["validapikey"] = true;
-								$tracker[$servernum][$id]["userrow"] = $result3["info"];
-								$tracker[$servernum][$id]["guestrow"] = $result2["info"];
+								$client->appdata["validapikey"] = true;
+								$client->appdata["userrow"] = $result3["info"];
+								$client->appdata["guestrow"] = $result2["info"];
 							}
 						}
 					}
 				}
 
-				if ($tracker[$servernum][$id]["validapikey"])
+				if ($client->appdata["validapikey"])
 				{
-					if ($tracker[$servernum][$id]["currext"] === false)
+					if ($client->appdata["currext"] === false)
 					{
 						$url = HTTP::ExtractURL($client->url);
 						$path = explode("/", $url["path"]);
-						$tracker[$servernum][$id]["pathparts"] = $path;
-						if (count($path) > 1 && isset($serverexts[$path[1]]) && isset($tracker[$servernum][$id]["userrow"]->serverexts[$path[1]]) && ($tracker[$servernum][$id]["guestrow"] === false || isset($tracker[$servernum][$id]["guestrow"]->serverexts[$path[1]])))  $tracker[$servernum][$id]["currext"] = $path[1];
+						$client->appdata["pathparts"] = $path;
+						if (count($path) > 1 && isset($serverexts[$path[1]]) && isset($client->appdata["userrow"]->serverexts[$path[1]]) && ($client->appdata["guestrow"] === false || isset($client->appdata["guestrow"]->serverexts[$path[1]])))  $client->appdata["currext"] = $path[1];
 					}
 
 					// Guaranteed to have at least the request line and headers if the request is incomplete.
-					if (!$client->requestcomplete && $tracker[$servernum][$id]["currext"] !== false)
+					if (!$client->requestcomplete && $client->appdata["currext"] !== false)
 					{
 						// Let server extensions raise the default limit of ~1MB of transfer per request (not per connection) if they want to.
 						// Extensions should only increase the limit for file uploads and should avoid decreasing the limit.
-						$serverexts[$tracker[$servernum][$id]["currext"]]->HTTPPreProcessAPI($client->request["method"], $tracker[$servernum][$id]["pathparts"], $client, $tracker[$servernum][$id]["userrow"], $tracker[$servernum][$id]["guestrow"]);
+						$serverexts[$client->appdata["currext"]]->HTTPPreProcessAPI($client->request["method"], $client->appdata["pathparts"], $client, $client->appdata["userrow"], $client->appdata["guestrow"]);
 					}
 				}
 
 				// Wait until the request is complete before fully processing inputs.
 				if ($client->requestcomplete)
 				{
-					if (!$tracker[$servernum][$id]["validapikey"])
+					if (!$client->appdata["validapikey"])
 					{
 						echo "Missing API key.\n";
 
@@ -287,7 +282,7 @@
 						$client->AddResponseContent(json_encode(array("success" => false, "error" => "Invalid or missing 'apikey'.", "errorcode" => "invalid_missing_apikey")));
 						$client->FinalizeResponse();
 					}
-					else if ($tracker[$servernum][$id]["currext"] === false)
+					else if ($client->appdata["currext"] === false)
 					{
 						echo "Unknown or invalid extension.\n";
 
@@ -303,17 +298,13 @@
 						if ($id2 !== false)
 						{
 							echo "Server " . $servernum . ", Client ID " . $id . " upgraded to WebSocket.  WebSocket client ID is " . $id2 . ".\n";
-
-							$tracker2[$id2] = $tracker[$servernum][$id];
-
-							unset($tracker[$servernum][$id]);
 						}
 						else
 						{
-							echo "Sending API response for:  " . $client->request["method"] . " " . implode("/", $tracker[$servernum][$id]["pathparts"]) . "\n";
+							echo "Sending API response for:  " . $client->request["method"] . " " . implode("/", $client->appdata["pathparts"]) . "\n";
 
 							// Check transfer limits.
-							$userrow = $tracker[$servernum][$id]["userrow"];
+							$userrow = $client->appdata["userrow"];
 							$received = $client->httpstate["result"]["rawrecvsize"];
 
 							$options = array();
@@ -345,18 +336,16 @@
 									if (!is_array($data))  $result2 = array("success" => false, "error" => "Data sent is not an array/object or was not able to be decoded.", "errorcode" => "invalid_data");
 									else
 									{
-										$result2 = $serverexts[$tracker[$servernum][$id]["currext"]]->ProcessAPI($client->request["method"], $tracker[$servernum][$id]["pathparts"], $client, $userrow, $tracker[$servernum][$id]["guestrow"], $data);
+										$result2 = $serverexts[$client->appdata["currext"]]->ProcessAPI($client->request["method"], $client->appdata["pathparts"], $client, $userrow, $client->appdata["guestrow"], $data);
 										if ($result2 === false)
 										{
 											$webserver->RemoveClient($id);
 
 											echo "Server " . $servernum . ", Client ID " . $id . " removed.\n";
-
-											unset($tracker[$servernum][$id]);
 										}
 										else if (!is_array($result2))
 										{
-											$tracker[$servernum][$id]["data"] = $data;
+											$client->appdata["data"] = $data;
 										}
 									}
 								}
@@ -377,17 +366,24 @@
 									$client->FinalizeResponse();
 								}
 
-								if ($client->responsefinalized)  $tracker[$servernum][$id]["currext"] = false;
+								if ($client->responsefinalized)  $client->appdata["currext"] = false;
 							}
 						}
 					}
 					else
 					{
 						// Continue where the API left off.
-						$result2 = $serverexts[$tracker[$servernum][$id]["currext"]]->ProcessAPI($client->request["method"], $tracker[$servernum][$id]["pathparts"], $client, $tracker[$servernum][$id]["userrow"], $tracker[$servernum][$id]["guestrow"], $tracker[$servernum][$id]["data"]);
-						if ($result2 === false)  $webserver->RemoveClient($id);
+						$result2 = $serverexts[$client->appdata["currext"]]->ProcessAPI($client->request["method"], $client->appdata["pathparts"], $client, $client->appdata["userrow"], $client->appdata["guestrow"], $client->appdata["data"]);
+						if ($result2 === false)
+						{
+							$webserver->RemoveClient($id);
 
-						if ($client->responsefinalized)  $tracker[$servernum][$id]["currext"] = false;
+							echo "Server " . $servernum . ", Client ID " . $id . " removed.\n";
+						}
+						else
+						{
+							if ($client->responsefinalized)  $client->appdata["currext"] = false;
+						}
 					}
 				}
 			}
@@ -395,15 +391,13 @@
 			// Do something with removed clients.
 			foreach ($result["removed"] as $id => $result2)
 			{
-				if (isset($tracker[$servernum][$id]))
+				if ($result2["client"]->appdata !== false)
 				{
 					echo "Server " . $servernum . ", Client ID " . $id . " disconnected.\n";
 
 //					echo "Client ID " . $id . " disconnected.  Reason:\n";
 //					var_dump($result2["result"]);
 //					echo "\n";
-
-					unset($tracker[$servernum][$id]);
 				}
 			}
 		}
@@ -435,13 +429,13 @@
 					$data["api_method"] = strtoupper($data["api_method"]);
 
 					$path = explode("/", str_replace("\\", "/", $data["api_path"]));
-					$tracker2[$id]["pathparts"] = $path;
-					if (count($path) > 1 && isset($serverexts[$path[1]]) && isset($tracker2[$id]["userrow"]->serverexts[$path[1]]) && ($tracker2[$id]["guestrow"] === false || isset($tracker2[$id]["guestrow"]->serverexts[$path[1]])))  $tracker2[$id]["currext"] = $path[1];
+					$client->appdata["pathparts"] = $path;
+					if (count($path) > 1 && isset($serverexts[$path[1]]) && isset($client->appdata["userrow"]->serverexts[$path[1]]) && ($client->appdata["guestrow"] === false || isset($client->appdata["guestrow"]->serverexts[$path[1]])))  $client->appdata["currext"] = $path[1];
 
-					echo "Sending API response for:  " . $data["api_method"] . " " . implode("/", $tracker2[$id]["pathparts"]) . "\n";
+					echo "Sending API response for:  " . $data["api_method"] . " " . implode("/", $client->appdata["pathparts"]) . "\n";
 
 					// Check transfer limits.
-					$userrow = $tracker2[$id]["userrow"];
+					$userrow = $client->appdata["userrow"];
 					$received = $client->websocket->GetRawRecvSize();
 
 					$options = array();
@@ -461,7 +455,7 @@
 						else
 						{
 							// Process the request.
-							$result3 = $serverexts[$tracker2[$id]["currext"]]->ProcessAPI($data["api_method"], $tracker2[$id]["pathparts"], $client, $userrow, $tracker2[$id]["guestrow"], $data);
+							$result3 = $serverexts[$client->appdata["currext"]]->ProcessAPI($data["api_method"], $client->appdata["pathparts"], $client, $userrow, $client->appdata["guestrow"], $data);
 							if ($result3 === false || !is_array($result3))  $wsserver->RemoveClient($id);
 							else  $result3["api_sequence"] = $data["api_sequence"];
 						}
@@ -477,15 +471,13 @@
 
 		foreach ($result["removed"] as $id => $result2)
 		{
-			if (isset($tracker2[$id]))
+			if ($result2["client"]->appdata !== false)
 			{
 				echo "WebSocket client ID " . $id . " disconnected.\n";
 
 //				echo "WebSocket client ID " . $id . " disconnected.  Reason:\n";
 //				var_dump($result2["result"]);
 //				echo "\n";
-
-				unset($tracker2[$id]);
 			}
 		}
 
