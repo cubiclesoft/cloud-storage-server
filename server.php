@@ -123,11 +123,7 @@
 	$webserver = (RemotedAPIWebServer::IsRemoted($config["host"]) ? new RemotedAPIWebServer() : new WebServer());
 
 	// Enable writing files to the system.
-	$cachedir = sys_get_temp_dir();
-	$cachedir = str_replace("\\", "/", $cachedir);
-	if (substr($cachedir, -1) !== "/")  $cachedir .= "/";
-	$cachedir .= "cloudstorage_" . microtime(true) . "/";
-	@mkdir($cachedir, 0770, true);
+	$cachedir = WebServer::MakeTempDir("cloudstorage");
 	$webserver->SetCacheDir($cachedir);
 
 	// Enable longer active client times.
