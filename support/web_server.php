@@ -10,7 +10,7 @@
 	// Compression support requires the CubicleSoft PHP DeflateStream class.
 	class WebServer
 	{
-		private $fp, $ssl, $initclients, $clients, $readyclients, $nextclientid;
+		private $fp, $ssl, $initclients, $clients, $readreadyclients, $writereadyclients, $nextclientid;
 		private $defaulttimeout, $defaultclienttimeout, $maxrequests, $defaultclientoptions, $usegzip, $cachedir;
 
 		public function __construct()
@@ -26,7 +26,8 @@
 			$this->ssl = false;
 			$this->initclients = array();
 			$this->clients = array();
-			$this->readyclients = array();
+			$this->readreadyclients = array();
+			$this->writereadyclients = array();
 			$this->nextclientid = 1;
 
 			$this->defaulttimeout = 30;
@@ -67,6 +68,18 @@
 			if (!class_exists("DeflateStream", false))  require_once str_replace("\\", "/", dirname(__FILE__)) . "/deflate_stream.php";
 
 			$this->usegzip = (bool)$compress;
+		}
+
+		public static function MakeTempDir($prefix, $perms = 0770)
+		{
+			$dir = sys_get_temp_dir();
+			$dir = str_replace("\\", "/", $dir);
+			if (substr($dir, -1) !== "/")  $dir .= "/";
+			$dir .= $prefix . "_" . getmypid() . "_" . microtime(true);
+			@mkdir($dir, 0770, true);
+			@chmod($dir, $perms);
+
+			return $dir;
 		}
 
 		public function SetCacheDir($cachedir)
@@ -136,7 +149,8 @@
 
 				$this->initclients = array();
 				$this->clients = array();
-				$this->readyclients = array();
+				$this->readreadyclients = array();
+				$this->writereadyclients = array();
 				$this->fp = false;
 				$this->ssl = false;
 			}
@@ -464,7 +478,7 @@
 				}
 			}
 
-			if (count($this->readyclients))  $timeout = 0;
+			if (count($this->readreadyclients))  $timeout = 0;
 
 			foreach ($this->clients as $id => $client)
 			{
@@ -478,6 +492,12 @@
 					}
 					else if (HTTP::WantRead($client->httpstate))  $readfps[$prefix . "http_c_" . $id] = $client->fp;
 					else if ($client->mode !== "init_response" && ($client->writedata !== "" || $client->httpstate["data"] !== ""))  $writefps[$prefix . "http_c_" . $id] = $client->fp;
+					else if ($client->responsefinalized)
+					{
+						$this->writereadyclients[$id] = $client->fp;
+
+						$timeout = 0;
+					}
 				}
 			}
 		}
@@ -615,8 +635,8 @@
 			$this->HandleNewConnections($readfps, $writefps);
 
 			// Handle ready clients.
-			foreach ($this->readyclients as $id => $fp)  $readfps["http_c_" . $id] = $fp;
-			$this->readyclients = array();
+			foreach ($this->readreadyclients as $id => $fp)  $readfps["http_c_" . $id] = $fp;
+			$this->readreadyclients = array();
 
 			// Handle clients in the read queue.
 			foreach ($readfps as $cid => $fp)
@@ -653,7 +673,7 @@
 						$client->mode = "init_response";
 						$client->responseheaders = array();
 						$client->responsefinalized = false;
-						$client->responsebodysize = false;
+						$client->responsebodysize = true;
 
 						$client->httpstate["type"] = "request";
 						$client->httpstate["startts"] = microtime(true);
@@ -707,13 +727,17 @@
 					else if ($client->requestcomplete === false && $client->httpstate["state"] !== "request_line" && $client->httpstate["state"] !== "headers")
 					{
 						// Allows the caller an opportunity to adjust some client options based on inputs on a per-client basis (e.g. recvlimit).
-						$this->readyclients[$id] = $fp;
+						$this->readreadyclients[$id] = $fp;
 						$result["clients"][$id] = $client;
 					}
 				}
 
 				unset($readfps[$cid]);
 			}
+
+			// Handle ready clients.
+			foreach ($this->writereadyclients as $id => $fp)  $writefps["http_c_" . $id] = $fp;
+			$this->writereadyclients = array();
 
 			// Handle clients in the write queue.
 			foreach ($writefps as $cid => $fp)
@@ -735,10 +759,10 @@
 					{
 						if ($client->responsefinalized)
 						{
-							$client->AddResponseHeader("Content-Length", (string)strlen($client->writedata), true);
+							if ($client->responsebodysize !== false)  $client->AddResponseHeader("Content-Length", (string)strlen($client->writedata), true);
 							$client->httpstate["bodysize"] = strlen($client->writedata);
 						}
-						else if ($client->responsebodysize !== false)
+						else if ($client->responsebodysize !== true)
 						{
 							$client->AddResponseHeader("Content-Length", (string)$client->responsebodysize, true);
 							$client->httpstate["bodysize"] = $client->responsebodysize;
@@ -760,6 +784,7 @@
 						$client->responseheaders = false;
 
 						$client->httpstate["data"] .= "\r\n";
+						$client->httpstate["result"]["rawsendheadersize"] = strlen($client->httpstate["data"]);
 
 						$client->mode = "handle_response";
 					}
@@ -802,7 +827,7 @@
 							$this->initclients[$id] = $client;
 							unset($this->clients[$id]);
 
-							if ($client->readdata !== "")  $this->readyclients[$id] = $fp;
+							if ($client->readdata !== "")  $this->readreadyclients[$id] = $fp;
 						}
 						else
 						{
@@ -921,6 +946,11 @@
 			return $this->clients;
 		}
 
+		public function NumClients()
+		{
+			return count($this->clients);
+		}
+
 		public function GetClient($id)
 		{
 			return (isset($this->clients[$id]) ? $this->clients[$id] : false);
@@ -933,7 +963,7 @@
 			$client = $this->clients[$id];
 
 			unset($this->clients[$id]);
-			unset($this->readyclients[$id]);
+			unset($this->readreadyclients[$id]);
 
 			return $client;
 		}
@@ -953,7 +983,7 @@
 				if ($client->fp !== false)  @fclose($client->fp);
 
 				unset($this->clients[$id]);
-				unset($this->readyclients[$id]);
+				unset($this->readreadyclients[$id]);
 			}
 		}
 	}
@@ -1046,6 +1076,8 @@
 
 					if (!isset($codemap[$code]))  $code = 500;
 
+					if ($this->responsebodysize === true && (($code >= 100 && $code < 200) || $code === 204 || $code === 304))  $this->responsebodysize = false;
+
 					$code = $code . " " . $codemap[$code];
 				}
 
@@ -1100,7 +1132,7 @@
 				$name = preg_replace('/\s+/', "-", trim(preg_replace('/[^A-Za-z0-9 ]/', " ", $name)));
 
 				if (!isset($this->responseheaders[$name]) || $replace)  $this->responseheaders[$name] = array();
-				$this->responseheaders[$name][] = $val;
+				$this->responseheaders[$name][] = str_replace(array("\r", "\n"), array("", ""), $val);
 			}
 		}
 
@@ -1125,8 +1157,6 @@
 			if ($this->requestcomplete && !$this->responsefinalized)
 			{
 				$this->responsebodysize = $bodysize;
-
-				if ($this->mode !== "handle_response")  $this->mode = "response_ready";
 			}
 		}
 
