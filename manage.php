@@ -25,8 +25,7 @@
 		"rules" => array(
 			"suppressoutput" => array("arg" => false),
 			"help" => array("arg" => false)
-		),
-		"userinput" => "="
+		)
 	);
 	$args = CLI::ParseCommandLine($options);
 
@@ -89,7 +88,7 @@
 	// Get the command.
 	$cmds = array("list" => "List all users", "create" => "Add a new user", "update" => "Change a user's transfer limit and quota.", "add-ext" => "Add user access to an API extension", "remove-ext" => "Remove user access to an API extension", "get-info" => "Get detailed information about a user", "delete" => "Delete a user");
 
-	$cmd = CLI::GetLimitedUserInputWithArgs($args, "cmd", "Command", false, "Available commands:", $cmds, true, $suppressoutput);
+	$cmd = CLI::GetLimitedUserInputWithArgs($args, false, "Command", false, "Available commands:", $cmds, true, $suppressoutput);
 
 	function DisplayResult($result)
 	{
@@ -183,6 +182,8 @@
 	}
 	else if ($cmd === "create")
 	{
+		CLI::ReinitArgs($args, array("username", "basepath", "quota", "transferlimit"));
+
 		// Get the username of the new user.
 		do
 		{
@@ -208,6 +209,8 @@
 	}
 	else if ($cmd === "update")
 	{
+		CLI::ReinitArgs($args, array("username", "quota", "transferlimit"));
+
 		$result = GetUser();
 		$id = $result["info"]["id"];
 
@@ -227,6 +230,8 @@
 	}
 	else if ($cmd === "add-ext")
 	{
+		CLI::ReinitArgs($args, array("username", "extension"));
+
 		$result = GetUser();
 		$id = $result["info"]["id"];
 
@@ -253,6 +258,8 @@
 	}
 	else if ($cmd === "remove-ext")
 	{
+		CLI::ReinitArgs($args, array("username", "extension"));
+
 		$result = GetUser();
 		$id = $result["info"]["id"];
 
@@ -277,10 +284,14 @@
 	}
 	else if ($cmd === "get-info")
 	{
+		CLI::ReinitArgs($args, array("username"));
+
 		DisplayResult(GetUser());
 	}
 	else if ($cmd === "delete")
 	{
+		CLI::ReinitArgs($args, array("username"));
+
 		$result = GetUser();
 		$id = $result["info"]["id"];
 
