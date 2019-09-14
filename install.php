@@ -29,8 +29,7 @@
 		"shortmap" => array(
 		),
 		"rules" => array(
-		),
-		"userinput" => "="
+		)
 	);
 	$args = CLI::ParseCommandLine($options);
 	$suppressoutput = false;
