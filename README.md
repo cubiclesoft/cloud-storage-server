@@ -39,6 +39,8 @@ Getting Started
 
 Download or clone the latest software release.  If you do not have PHP installed, then download and install the command-line (CLI) version for your OS (e.g. 'apt install php-cli' on Debian/Ubuntu).  Windows users try [Portable Apache + PHP + Maria DB](https://github.com/cubiclesoft/portable-apache-maria-db-php-for-windows).
 
+You'll also need to enable the SQLite and OpenSSL PHP modules for your PHP CLI version (e.g. 'apt install php-sqlite php-openssl' on Debian/Ubuntu, edit the 'php.ini' file on Windows).
+
 From a command-line, run:
 
 ```
