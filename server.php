@@ -157,7 +157,7 @@
 		$webserver->SetMaxRequests(200);
 
 		echo "Starting localhost server...\n";
-		$result = $webserver->Start(($config["host"]{0} === "[" ? "[::1]" : "127.0.0.1"), $config["port"] + 1);
+		$result = $webserver->Start(($config["host"][0] === "[" ? "[::1]" : "127.0.0.1"), $config["port"] + 1);
 		if (!$result["success"])
 		{
 			var_dump($result);
