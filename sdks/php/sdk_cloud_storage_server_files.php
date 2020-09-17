@@ -10,7 +10,7 @@
 	{
 		public function __construct()
 		{
-			parent::__contstruct();
+			parent::__construct();
 
 			$this->apiprefix = "/files/v1";
 		}
