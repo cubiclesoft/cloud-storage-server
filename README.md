@@ -77,12 +77,14 @@ php server.php
 
 Then connect to the server with a valid client SDK using the `Host` and `API key` from earlier.
 
-The easiest way to get started is to use [Cloud Storage Tools](https://github.com/cubiclesoft/cloud-storage-tools).
+The easiest client to get started with is to use [Cloud Storage Tools](https://github.com/cubiclesoft/cloud-storage-tools).
 
 Example usage using the included PHP SDK with the /files extension:
 
 ```php
 <?php
+	// This code is not intended for production environments.
+	// See the Cloud Storage Tools source code for better/more correct usage.
 	require_once "sdks/php/sdk_cloud_storage_server_files.php";
 
 	// Set this to
