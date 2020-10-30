@@ -77,6 +77,68 @@ php server.php
 
 Then connect to the server with a valid client SDK using the `Host` and `API key` from earlier.
 
+The easiest way to get started is to use [Cloud Storage Tools](https://github.com/cubiclesoft/cloud-storage-tools).
+
+Example usage using the included PHP SDK with the /files extension:
+
+```php
+<?php
+	require_once "sdks/php/sdk_cloud_storage_server_files.php";
+
+	// Set this to
+	$host = "https://localhost:9892";
+	$apikey = "abcdef12......34567890-1";
+
+	$css = new CloudStorageServerFiles();
+
+	// Note that this is the wrong way to call this function.
+	// The last two parameters are supposed to point to SSL certificate information.
+	// See:  CloudStorageServer_APIBase::SetAccessInfo($host, $apikey, $cafile, $cert)
+	$css->SetAccessInfo($host, $apikey, false, false);
+
+	// Force-loads the server's SSL cert and assume it to be valid.
+	$result = $css->GetSSLInfo();
+	if (!$result["success"])
+	{
+		var_dump($result);
+
+		exit();
+	}
+
+	// Get the server's timestamp and root folder ID.
+	$result = $css->GetRootFolderID();
+	if (!$result["success"])
+	{
+		var_dump($result);
+
+		exit();
+	}
+
+var_dump($result);
+
+	// Obtain an object ID via a path.
+	$result = $css->GetObjectByPath("/");
+	if (!$result["success"])
+	{
+		var_dump($result);
+
+		exit();
+	}
+
+	$id = $result["body"]["object"]["id"];
+
+	// Retrieve the folder list associated with an ID.
+	$result = $css->GetFolderList($id);
+	if (!$result["success"])
+	{
+		var_dump($result);
+
+		exit();
+	}
+
+var_dump($result);
+```
+
 Once everything is good to go, re-run the installer to install the server as a system service:
 
 ```
