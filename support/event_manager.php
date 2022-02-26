@@ -21,7 +21,7 @@
 			}
 
 			if (!isset($this->events[$eventname]))  $this->events[$eventname] = array("used" => 0, "callbacks" => array());
-			$this->events[$eventname]["callbacks"][$this->nextid] = ($funcname === false ? $objorfuncname : array($obj, $funcname));
+			$this->events[$eventname]["callbacks"][$this->nextid] = ($funcname === false ? $objorfuncname : array($objorfuncname, $funcname));
 
 			$id = $this->nextid;
 			$this->nextid++;
