@@ -18,7 +18,7 @@
 			foreach ($options as $key => $val)  $cmd .= " " . escapeshellarg("-" . $key . "=" . $val);
 			$cmd .= " install " . escapeshellarg($servicename);
 			$cmd .= " " . escapeshellarg($phpfile . ".notify");
-			$cmd .= " " . escapeshellarg(PHP_BINARY);
+			$cmd .= " " . escapeshellarg($this->GetPHPBinary());
 			$cmd .= " " . escapeshellarg($phpfile);
 			foreach ($args as $arg)  $cmd .= " " . escapeshellarg($arg);
 
@@ -128,7 +128,7 @@
 			$cmd .= " addaction " . escapeshellarg($servicename);
 			$cmd .= " " . escapeshellarg($actionname);
 			$cmd .= " " . escapeshellarg($actiondesc);
-			$cmd .= " " . escapeshellarg(PHP_BINARY);
+			$cmd .= " " . escapeshellarg($this->GetPHPBinary());
 			$cmd .= " " . escapeshellarg($phpfile);
 			foreach ($args as $arg)  $cmd .= " " . escapeshellarg($arg);
 
@@ -150,6 +150,14 @@
 
 				@chmod($result, 0755);
 			}
+
+			return $result;
+		}
+
+		public function GetPHPBinary()
+		{
+			if (file_exists("/usr/bin/php") && realpath("/usr/bin/php") === PHP_BINARY)  $result = "/usr/bin/php";
+			else  $result = PHP_BINARY;
 
 			return $result;
 		}
