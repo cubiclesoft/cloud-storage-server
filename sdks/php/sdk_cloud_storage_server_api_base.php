@@ -274,7 +274,7 @@
 			if (!$result["success"] && $this->fp !== false)
 			{
 				// If the server terminated the connection, then re-establish the connection and rerun the request.
-				@fclose($this->fp);
+				if (is_resource($this->fp))  @fclose($this->fp);
 				$this->fp = false;
 
 				return $this->RunAPI($method, $apipath, $options, $expected, $encodejson, $decodebody);
