@@ -1,6 +1,6 @@
 <?php
 	// Service Manager interface PHP SDK.
-	// (C) 2016 CubicleSoft.  All Rights Reserved.
+	// (C) 2022 CubicleSoft.  All Rights Reserved.
 
 	class ServiceManager
 	{
@@ -68,7 +68,7 @@
 		public function WaitFor($servicename, $display = false)
 		{
 			$cmd = escapeshellarg($this->GetServiceManagerRealpath());
-			$cmd .= " status " . escapeshellarg($servicename);
+			$cmd .= " waitfor " . escapeshellarg($servicename);
 
 			return $this->RunCommand($cmd, $display);
 		}
